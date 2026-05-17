@@ -163,6 +163,13 @@ export interface EdiDocumentUpdate {
   x12Content?: string;
 }
 
+export interface SendRequestInfo {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
 export interface SendResult {
   success: boolean;
   message: string;
@@ -172,6 +179,8 @@ export interface SendResult {
   responseBody?: string | null;
   /** @nullable */
   sentAt?: string | null;
+  /** @nullable */
+  requestInfo?: SendRequestInfo | null;
 }
 
 export interface X12Preview {

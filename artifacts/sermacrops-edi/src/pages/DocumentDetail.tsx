@@ -1,18 +1,30 @@
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useGetEdiDocument, getGetEdiDocumentQueryKey, useSendEdiDocument, useDeleteEdiDocument, getListEdiDocumentsQueryKey, usePreviewEdiDocument, getPreviewEdiDocumentQueryKey } from "@workspace/api-client-react";
+import type { SendRequestInfo } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge, { docTypeLabel } from "@/components/DocTypeBadge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Send, Trash2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Send, Trash2, RefreshCw, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+
+function buildRequestCode(info: SendRequestInfo): string {
+  const headerLines = Object.entries(info.headers)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("\n");
+  return `${info.method} ${info.url} HTTP/1.1\n${headerLines}\n\n${info.body}`;
+}
 
 export default function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [lastRequestInfo, setLastRequestInfo] = useState<SendRequestInfo | null>(null);
+  const [requestPanelOpen, setRequestPanelOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const { data: doc, isLoading } = useGetEdiDocument(id, {
     query: { enabled: !!id, queryKey: getGetEdiDocumentQueryKey(id) },
@@ -29,6 +41,10 @@ export default function DocumentDetail() {
       const result = await sendDoc.mutateAsync({ id } as never);
       queryClient.invalidateQueries({ queryKey: getGetEdiDocumentQueryKey(id) });
       queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey() });
+      if (result.requestInfo) {
+        setLastRequestInfo(result.requestInfo);
+        setRequestPanelOpen(true);
+      }
       toast({ title: result.success ? "Sent successfully" : "Send failed", description: result.message, variant: result.success ? "default" : "destructive" });
     } catch {
       toast({ title: "Error", description: "Failed to send document", variant: "destructive" });
@@ -41,6 +57,14 @@ export default function DocumentDetail() {
     queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey() });
     setLocation("/documents");
     toast({ title: "Deleted" });
+  }
+
+  function handleCopy() {
+    if (!lastRequestInfo) return;
+    navigator.clipboard.writeText(buildRequestCode(lastRequestInfo)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
@@ -80,6 +104,52 @@ export default function DocumentDetail() {
           </Button>
         </div>
       </div>
+
+      {/* Request Preview Panel */}
+      {lastRequestInfo && (
+        <div className="bg-card border border-card-border rounded-lg overflow-hidden">
+          <button
+            onClick={() => setRequestPanelOpen(o => !o)}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/40 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                {lastRequestInfo.method}
+              </span>
+              <span className="text-xs font-mono text-muted-foreground truncate max-w-[500px]">{lastRequestInfo.url}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Outbound Request</span>
+              {requestPanelOpen ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            </div>
+          </button>
+          {requestPanelOpen && (
+            <div className="border-t border-border relative">
+              <button
+                onClick={handleCopy}
+                className="absolute top-3 right-3 z-10 p-1.5 rounded bg-muted/80 hover:bg-muted border border-border transition-colors"
+                title="Copy to clipboard"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+              </button>
+              <pre className="text-[11px] font-mono text-foreground bg-muted/40 p-5 pr-12 overflow-x-auto whitespace-pre leading-relaxed">
+                <span className="text-violet-600 font-semibold">{lastRequestInfo.method}</span>{" "}
+                <span className="text-blue-600">{lastRequestInfo.url}</span>{" "}
+                <span className="text-muted-foreground">HTTP/1.1</span>{"\n"}
+                {Object.entries(lastRequestInfo.headers).map(([key, val]) => (
+                  <span key={key}>
+                    <span className="text-amber-600">{key}</span>
+                    <span className="text-muted-foreground">: </span>
+                    <span className="text-emerald-700">{val}</span>{"\n"}
+                  </span>
+                ))}
+                {"\n"}
+                <span className="text-foreground/70">{lastRequestInfo.body}</span>
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Document fields */}

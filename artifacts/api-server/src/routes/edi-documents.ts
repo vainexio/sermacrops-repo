@@ -134,6 +134,17 @@ router.post("/edi-documents/:id/send", async (req, res): Promise<void> => {
       try { Object.assign(headers, JSON.parse(endpoint.customHeaders)); } catch {}
     }
 
+    const safeHeaders: Record<string, string> = { ...headers };
+    if (safeHeaders["Authorization"]) safeHeaders["Authorization"] = safeHeaders["Authorization"].replace(/Bearer .+/, (t) => `Bearer ${t.slice(7, 10)}${"*".repeat(Math.max(0, t.length - 14))}${t.slice(-4)}`);
+    if (safeHeaders["X-Api-Key"]) safeHeaders["X-Api-Key"] = `${safeHeaders["X-Api-Key"].slice(0, 3)}${"*".repeat(Math.max(0, safeHeaders["X-Api-Key"].length - 6))}${safeHeaders["X-Api-Key"].slice(-3)}`;
+    const bodyPreview = (doc.x12Content ?? "").slice(0, 800);
+    const requestInfo = {
+      method: "POST",
+      url: endpoint.url,
+      headers: safeHeaders,
+      body: bodyPreview,
+    };
+
     const resp = await fetch(endpoint.url, { method: "POST", headers, body: doc.x12Content ?? "", signal: AbortSignal.timeout(10000) });
     const body = await resp.text().catch(() => "");
     const now = new Date();
@@ -144,7 +155,7 @@ router.post("/edi-documents/:id/send", async (req, res): Promise<void> => {
     if (resp.status === 200) { doc.status = "delivered"; doc.deliveredAt = now; } else { doc.status = "failed"; }
     await doc.save();
     await AuditLog.create({ action: resp.status === 200 ? "delivered" : "send_failed", entityType: "EdiDocument", entityId: raw, details: JSON.stringify({ status: resp.status }) });
-    res.json({ success: resp.status === 200, message: resp.status === 200 ? "Delivered successfully" : `HTTP ${resp.status}`, responseCode: resp.status, responseBody: body.slice(0, 500), sentAt: now.toISOString() });
+    res.json({ success: resp.status === 200, message: resp.status === 200 ? "Delivered successfully" : `HTTP ${resp.status}`, responseCode: resp.status, responseBody: body.slice(0, 500), sentAt: now.toISOString(), requestInfo });
   } catch (err) {
     doc.status = "retry_pending";
     doc.retryCount = (doc.retryCount ?? 0) + 1;
