@@ -14,12 +14,12 @@ const INBOUND_URL = `${BASE_URL}/api/edi/inbound`;
 
 const CURL_JSON = `curl -X POST "${INBOUND_URL}" \\
   -H "Content-Type: application/json" \\
-  -d '{"x12Content":"ISA*00*          *00*          *ZZ*COFFEESHOP01   *ZZ*SERMACROPS01   *260517*1200*^*00501*000000001*0*P*:~\\nGS*PO*COFFEESHOP01*SERMACROPS01*20260517*1200*1*X*005010~\\nST*850*0001~\\nBEG*00*SA*PO-CS-2025-0099**20260517~\\nSE*2*0001~\\nGE*1*1~\\nIEA*1*000000001~"}'`;
+  -d '{"x12Content":"ISA*00*          *00*          *ZZ*COFFEESHOP   *ZZ*SERMACROPS   *260517*1200*^*00501*000000001*0*P*:~\\nGS*PO*COFFEESHOP*SERMACROPS*20260517*1200*1*X*005010~\\nST*850*0001~\\nBEG*00*SA*PO-CS-2025-0099**20260517~\\nSE*2*0001~\\nGE*1*1~\\nIEA*1*000000001~"}'`;
 
 const CURL_RAW = `curl -X POST "${INBOUND_URL}" \\
   -H "Content-Type: application/EDI-X12" \\
-  --data-raw "ISA*00*          *00*          *ZZ*COFFEESHOP01   *ZZ*SERMACROPS01   *260517*1200*^*00501*000000001*0*P*:~
-GS*PO*COFFEESHOP01*SERMACROPS01*20260517*1200*1*X*005010~
+  --data-raw "ISA*00*          *00*          *ZZ*COFFEESHOP   *ZZ*SERMACROPS   *260517*1200*^*00501*000000001*0*P*:~
+GS*PO*COFFEESHOP*SERMACROPS*20260517*1200*1*X*005010~
 ST*850*0001~
 BEG*00*SA*PO-CS-2025-0099**20260517~
 SE*2*0001~
@@ -122,7 +122,7 @@ export default function Inbound() {
                 </div>
                 <div className="bg-card border border-border rounded p-3">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">ISA Receiver ID</p>
-                  <code className="text-sm font-mono font-bold text-foreground">SERMACROPS01</code>
+                  <code className="text-sm font-mono font-bold text-foreground">SERMACROPS</code>
                   <p className="text-[10px] text-muted-foreground mt-1">Must match in ISA*08 field</p>
                   <p className="text-[10px] text-muted-foreground mt-2 font-medium">ISA Qualifier</p>
                   <code className="text-xs font-mono text-foreground">ZZ</code>
@@ -131,7 +131,7 @@ export default function Inbound() {
 
               {/* Code examples */}
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">Example — How Your Partners Send</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">Example — Partners Send</p>
                 <div className="flex gap-1 mb-2">
                   {(["json", "raw"] as const).map(tab => (
                     <button
@@ -155,7 +155,7 @@ export default function Inbound() {
 
               {/* Response format */}
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1.5">Response</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1.5">Response from SERMACROPS</p>
                 <pre className="text-[10px] font-mono bg-muted/60 rounded p-3 border border-border text-foreground overflow-x-auto">{`{
   "success": true,
   "messageId": "6a09b9...",
