@@ -9,14 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Plus, Edit2, Trash2 } from "lucide-react";
+import { Building2, Plus, Edit2, Trash2, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const schema = z.object({
   name: z.string().min(1, "Required"),
   ediId: z.string().min(1, "Required"),
   type: z.string().min(1, "Required"),
-  address: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().max(2, "2-letter code").optional(),
+  zip: z.string().optional(),
+  country: z.string().optional(),
   contactEmail: z.string().email().optional().or(z.literal("")),
   contactPhone: z.string().optional(),
 });
@@ -29,6 +34,12 @@ const TYPE_LABELS: Record<string, string> = {
   supplier: "Raw Materials Supplier",
   logistics: "Logistics / 3PL",
 };
+
+function formatAddress(c: { addressLine1?: string | null; city?: string | null; state?: string | null; zip?: string | null; country?: string | null }): string | null {
+  const parts = [c.addressLine1, [c.city, c.state].filter(Boolean).join(", "), c.zip].filter(Boolean);
+  if (c.country && c.country !== "US") parts.push(c.country);
+  return parts.length ? parts.join(" · ") : null;
+}
 
 export default function Companies() {
   const { toast } = useToast();
@@ -43,18 +54,30 @@ export default function Companies() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", ediId: "", type: "", address: "", contactEmail: "", contactPhone: "" },
+    defaultValues: { name: "", ediId: "", type: "", addressLine1: "", addressLine2: "", city: "", state: "", zip: "", country: "US", contactEmail: "", contactPhone: "" },
   });
 
   function openCreate() {
     setEditId(null);
-    form.reset({ name: "", ediId: "", type: "" });
+    form.reset({ name: "", ediId: "", type: "", addressLine1: "", addressLine2: "", city: "", state: "", zip: "", country: "US", contactEmail: "", contactPhone: "" });
     setOpen(true);
   }
 
   function openEdit(c: NonNullable<typeof companies>[0]) {
     setEditId(c.id);
-    form.reset({ name: c.name, ediId: c.ediId, type: c.type, address: c.address ?? "", contactEmail: c.contactEmail ?? "", contactPhone: c.contactPhone ?? "" });
+    form.reset({
+      name: c.name,
+      ediId: c.ediId,
+      type: c.type,
+      addressLine1: c.addressLine1 ?? "",
+      addressLine2: c.addressLine2 ?? "",
+      city: c.city ?? "",
+      state: c.state ?? "",
+      zip: c.zip ?? "",
+      country: c.country ?? "US",
+      contactEmail: c.contactEmail ?? "",
+      contactPhone: c.contactPhone ?? "",
+    });
     setOpen(true);
   }
 
@@ -104,51 +127,56 @@ export default function Companies() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {companies?.map(company => (
-          <div key={company.id} data-testid={`company-card-${company.id}`} className="bg-card border border-card-border rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="font-semibold text-foreground">{company.name}</h3>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${company.isActive ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
-                    {company.isActive ? "Active" : "Inactive"}
-                  </span>
+        {companies?.map(company => {
+          const addr = formatAddress(company);
+          return (
+            <div key={company.id} data-testid={`company-card-${company.id}`} className="bg-card border border-card-border rounded-lg p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="font-semibold text-foreground">{company.name}</h3>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${company.isActive ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                      {company.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{TYPE_LABELS[company.type] ?? company.type}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{TYPE_LABELS[company.type] ?? company.type}</p>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" data-testid={`btn-edit-company-${company.id}`} onClick={() => openEdit(company)}>
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" data-testid={`btn-delete-company-${company.id}`} onClick={() => handleDelete(company.id)}>
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm" data-testid={`btn-edit-company-${company.id}`} onClick={() => openEdit(company)}>
-                  <Edit2 className="w-3.5 h-3.5" />
-                </Button>
-                <Button variant="ghost" size="sm" data-testid={`btn-delete-company-${company.id}`} onClick={() => handleDelete(company.id)}>
-                  <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                </Button>
-              </div>
+              <dl className="space-y-1">
+                <div className="flex gap-2">
+                  <dt className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 shrink-0">EDI ID</dt>
+                  <dd className="text-xs font-mono font-medium text-foreground">{company.ediId}</dd>
+                </div>
+                {company.contactEmail && (
+                  <div className="flex gap-2">
+                    <dt className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 shrink-0">Email</dt>
+                    <dd className="text-xs text-foreground truncate">{company.contactEmail}</dd>
+                  </div>
+                )}
+                {addr && (
+                  <div className="flex gap-2">
+                    <dt className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 shrink-0 flex items-center gap-0.5">
+                      <MapPin className="w-2.5 h-2.5" /> Addr
+                    </dt>
+                    <dd className="text-xs text-foreground truncate">{addr}</dd>
+                  </div>
+                )}
+              </dl>
             </div>
-            <dl className="space-y-1">
-              <div className="flex gap-2">
-                <dt className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 shrink-0">EDI ID</dt>
-                <dd className="text-xs font-mono font-medium text-foreground">{company.ediId}</dd>
-              </div>
-              {company.contactEmail && (
-                <div className="flex gap-2">
-                  <dt className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 shrink-0">Email</dt>
-                  <dd className="text-xs text-foreground truncate">{company.contactEmail}</dd>
-                </div>
-              )}
-              {company.address && (
-                <div className="flex gap-2">
-                  <dt className="text-[10px] text-muted-foreground uppercase tracking-wide w-20 shrink-0">Address</dt>
-                  <dd className="text-xs text-foreground truncate">{company.address}</dd>
-                </div>
-              )}
-            </dl>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Company" : "Add Company"}</DialogTitle>
           </DialogHeader>
@@ -170,6 +198,7 @@ export default function Companies() {
                   </FormItem>
                 )} />
               </div>
+
               <FormField control={form.control} name="type" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Company Type</FormLabel>
@@ -187,12 +216,50 @@ export default function Companies() {
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="address" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl><Input data-testid="input-company-address" placeholder="123 Main St, City, State" {...field} /></FormControl>
-                </FormItem>
-              )} />
+
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address (used in EDI N1/N3/N4 segments)</p>
+                <FormField control={form.control} name="addressLine1" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Street Address</FormLabel>
+                    <FormControl><Input data-testid="input-address-line1" placeholder="123 Commerce Blvd" {...field} /></FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="addressLine2" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Suite / Unit</FormLabel>
+                    <FormControl><Input data-testid="input-address-line2" placeholder="Suite 400" {...field} /></FormControl>
+                  </FormItem>
+                )} />
+                <div className="grid grid-cols-3 gap-2">
+                  <FormField control={form.control} name="city" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl><Input data-testid="input-city" placeholder="Miami" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="state" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl><Input data-testid="input-state" placeholder="FL" maxLength={2} {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="zip" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ZIP</FormLabel>
+                      <FormControl><Input data-testid="input-zip" placeholder="33101" {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+                </div>
+                <FormField control={form.control} name="country" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <FormControl><Input data-testid="input-country" placeholder="US" {...field} /></FormControl>
+                  </FormItem>
+                )} />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="contactEmail" render={({ field }) => (
                   <FormItem>
@@ -208,6 +275,7 @@ export default function Companies() {
                   </FormItem>
                 )} />
               </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                 <Button type="submit" data-testid="btn-save-company" disabled={create.isPending || update.isPending}>

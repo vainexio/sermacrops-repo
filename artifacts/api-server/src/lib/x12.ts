@@ -1,5 +1,16 @@
 import type { IEdiDocument } from "../models/EdiDocument";
 
+export interface CompanyInfo {
+  ediId: string;
+  name: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+}
+
 function pad(n: number, len: number): string {
   return String(n).padStart(len, "0");
 }
@@ -17,6 +28,22 @@ function timeNow(): string {
 function parseLineItems(raw?: string | null): Array<{ description: string; quantity: number; unitPrice: number; uom?: string }> {
   if (!raw) return [];
   try { return JSON.parse(raw); } catch { return []; }
+}
+
+function n1Loop(qualifier: string, co: CompanyInfo): string[] {
+  const segs: string[] = [`N1*${qualifier}*${co.name}~`];
+  if (co.addressLine1) {
+    segs.push(co.addressLine2 ? `N3*${co.addressLine1}*${co.addressLine2}~` : `N3*${co.addressLine1}~`);
+  }
+  if (co.city || co.state || co.zip) {
+    const country = co.country && co.country !== "US" ? `*${co.country}` : "";
+    segs.push(`N4*${co.city ?? ""}*${co.state ?? ""}*${co.zip ?? ""}${country}~`);
+  }
+  return segs;
+}
+
+function segCount(segs: string[]): number {
+  return segs.length + 1; // +1 for SE itself
 }
 
 function generateISAEnvelope(senderId: string, receiverId: string, icn: string, content: string): string {
@@ -43,104 +70,137 @@ function getGSFunctionId(content: string): string {
   return "XX";
 }
 
-export function generateX12(doc: IEdiDocument, senderEdiId: string, receiverEdiId: string): string {
+export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: CompanyInfo): string {
   const items = parseLineItems(doc.lineItems);
   const icn = doc.controlNumber ?? "000000001";
   const stNum = icn.padStart(4, "0");
   const poNum = doc.poNumber ?? doc.referenceNumber ?? "PO00001";
   const shipDate = (doc.shipDate ?? today()).replace(/-/g, "");
   const delivDate = (doc.deliveryDate ?? today()).replace(/-/g, "");
+  const currency = doc.currencyCode ?? "USD";
 
-  let body = "";
+  let segs: string[] = [];
 
   switch (doc.documentType) {
     case "850": {
-      const lines = items.map((it, i) =>
+      const lineSegs = items.map((it, i) =>
         `PO1*${i + 1}*${it.quantity}*${it.uom ?? "EA"}*${it.unitPrice}**VN*${it.description}~`
-      ).join("\n");
-      body = [
+      );
+      segs = [
         `ST*850*${stNum}~`,
         `BEG*00*SA*${poNum}**${shipDate}~`,
-        `CUR*BY*USD~`,
+        `CUR*BY*${currency}~`,
         `REF*DP*${doc.referenceNumber ?? "REF001"}~`,
         `ITD*01*3*2**10*30~`,
-        lines || `PO1*1*1*EA*0.00**VN*ITEM001~`,
+        ...n1Loop("BY", receiver),
+        ...n1Loop("SE", sender),
+        ...(lineSegs.length ? lineSegs : [`PO1*1*1*EA*0.00**VN*ITEM001~`]),
         `CTT*${items.length || 1}~`,
-        `SE*${6 + (items.length || 1)}*${stNum}~`,
-      ].join("\n");
+      ];
+      segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
     }
     case "855": {
-      body = [
+      const ackCode = doc.ackStatus ?? "AC";
+      segs = [
         `ST*855*${stNum}~`,
-        `BAK*00*AC*${poNum}*${shipDate}~`,
+        `BAK*00*${ackCode}*${poNum}*${shipDate}~`,
         `REF*CO*${doc.referenceNumber ?? "AC001"}~`,
-        `SE*3*${stNum}~`,
-      ].join("\n");
+        ...n1Loop("SE", sender),
+        ...n1Loop("BY", receiver),
+      ];
+      segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
     }
     case "856": {
-      const lines = items.map((it, i) =>
-        `LIN*${i + 1}*VN*${it.description}~\nSN1**${it.quantity}*${it.uom ?? "EA"}~`
-      ).join("\n");
-      body = [
+      const carrier = doc.carrierName ?? receiver.ediId;
+      const pro = doc.proNumber ?? doc.referenceNumber ?? "ASN001";
+      const lineSegs = items.flatMap((it, i) => [
+        `LIN*${i + 1}*VN*${it.description}~`,
+        `SN1**${it.quantity}*${it.uom ?? "EA"}~`,
+      ]);
+      const weightSeg = doc.weight ? [`W12*${doc.weightUOM ?? "LB"}*${doc.weight}~`] : [];
+      const pkgSeg = doc.packageCount ? [`PKG*F*${doc.packageCount}~`] : [];
+      segs = [
         `ST*856*${stNum}~`,
-        `BSN*00*${doc.referenceNumber ?? "ASN001"}*${shipDate}*${timeNow()}~`,
+        `BSN*00*${pro}*${shipDate}*${timeNow()}~`,
         `HL*1**S~`,
-        `TD5****ZZ*${receiverEdiId}~`,
+        `TD5****ZZ*${carrier}~`,
         `DTM*011*${shipDate}~`,
+        ...weightSeg,
+        ...pkgSeg,
+        ...n1Loop("SF", sender),
+        ...n1Loop("ST", receiver),
         `HL*2*1*O~`,
         `PRF*${poNum}~`,
-        lines || `LIN*1*VN*ITEM001~\nSN1**1*EA~`,
+        ...(lineSegs.length ? lineSegs : [`LIN*1*VN*ITEM001~`, `SN1**1*EA~`]),
         `CTT*${items.length || 1}~`,
-        `SE*${8 + (items.length || 1) * 2}*${stNum}~`,
-      ].join("\n");
+      ];
+      segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
     }
     case "810": {
       const total = doc.totalAmount ?? items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-      const lines = items.map((it, i) =>
+      const invNum = doc.invoiceNumber ?? `INV${poNum}`;
+      const dueDate = (doc.invoiceDueDate ?? delivDate).replace(/-/g, "");
+      const lineSegs = items.map((it, i) =>
         `IT1*${i + 1}*${it.quantity}*${it.uom ?? "EA"}*${it.unitPrice}**VN*${it.description}~`
-      ).join("\n");
-      body = [
+      );
+      segs = [
         `ST*810*${stNum}~`,
-        `BIG*${shipDate}*INV${poNum}*${delivDate}*${poNum}~`,
+        `BIG*${shipDate}*${invNum}*${dueDate}*${poNum}~`,
+        `CUR*SE*${currency}~`,
         `REF*DP*${doc.referenceNumber ?? "REF001"}~`,
         `ITD*01*3*2**10*30~`,
-        lines || `IT1*1*1*EA*0.00**VN*ITEM001~`,
+        ...n1Loop("SE", sender),
+        ...n1Loop("BT", receiver),
+        ...(lineSegs.length ? lineSegs : [`IT1*1*1*EA*0.00**VN*ITEM001~`]),
         `TDS*${Math.round(total * 100)}~`,
-        `SE*${6 + (items.length || 1)}*${stNum}~`,
-      ].join("\n");
+      ];
+      segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
     }
     case "204": {
-      body = [
+      const equip = doc.equipmentType ?? "53";
+      const specialInstr = doc.specialInstructions;
+      const weightSegs = doc.weight ? [`AT8*G*${doc.weightUOM ?? "LB"}*${doc.weight}~`] : [];
+      const noteSegs = specialInstr ? [`NTE**${specialInstr}~`] : [];
+      segs = [
         `ST*204*${stNum}~`,
-        `B2**${senderEdiId}**${doc.referenceNumber ?? "LOAD001"}**PP~`,
+        `B2**${sender.ediId}**${doc.referenceNumber ?? "LOAD001"}**PP~`,
         `B2A*00*LT~`,
         `L11*${poNum}*PO~`,
         `G62*37*${shipDate}~`,
         `G62*38*${delivDate}~`,
-        `MS3*${receiverEdiId}*H*ZZ~`,
+        `MS3*${receiver.ediId}*H*ZZ~`,
         `AT5*AB~`,
-        `SE*8*${stNum}~`,
-      ].join("\n");
+        `L3***${equip}~`,
+        ...weightSegs,
+        ...n1Loop("SH", sender),
+        ...n1Loop("CN", receiver),
+        ...noteSegs,
+      ];
+      segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
     }
     case "990": {
-      body = [
+      const resp = doc.loadResponseCode ?? "A";
+      segs = [
         `ST*990*${stNum}~`,
-        `B1*${senderEdiId}*${doc.referenceNumber ?? "LOAD001"}**PP~`,
-        `B1A*A~`,
-        `SE*3*${stNum}~`,
-      ].join("\n");
+        `B1*${sender.ediId}*${doc.referenceNumber ?? "LOAD001"}**PP~`,
+        `B1A*${resp}~`,
+        ...n1Loop("SH", sender),
+        ...n1Loop("CN", receiver),
+      ];
+      segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
     }
     default:
-      body = `ST*${doc.documentType}*${stNum}~\nSE*1*${stNum}~`;
+      segs = [`ST*${doc.documentType}*${stNum}~`, `SE*2*${stNum}~`];
   }
 
-  return generateISAEnvelope(senderEdiId, receiverEdiId, icn, body);
+  const body = segs.join("\n");
+  return generateISAEnvelope(sender.ediId, receiver.ediId, icn, body);
 }
 
 export function parseX12Type(payload: string): string | null {

@@ -15,7 +15,16 @@ export interface Company {
   ediId: string;
   type: string;
   /** @nullable */
-  address?: string | null;
+  addressLine1?: string | null;
+  /** @nullable */
+  addressLine2?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  state?: string | null;
+  /** @nullable */
+  zip?: string | null;
+  country?: string;
   /** @nullable */
   contactEmail?: string | null;
   /** @nullable */
@@ -28,7 +37,12 @@ export interface CompanyInput {
   name: string;
   ediId: string;
   type: string;
-  address?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
   contactEmail?: string;
   contactPhone?: string;
   isActive?: boolean;
@@ -38,7 +52,12 @@ export interface CompanyUpdate {
   name?: string;
   ediId?: string;
   type?: string;
-  address?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
   contactEmail?: string;
   contactPhone?: string;
   isActive?: boolean;
@@ -115,6 +134,32 @@ export interface EdiDocument {
   x12Content?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  currencyCode?: string | null;
+  /** @nullable */
+  invoiceNumber?: string | null;
+  /** @nullable */
+  invoiceDueDate?: string | null;
+  /** @nullable */
+  ackStatus?: string | null;
+  /** @nullable */
+  carrierName?: string | null;
+  /** @nullable */
+  proNumber?: string | null;
+  /** @nullable */
+  trackingNumber?: string | null;
+  /** @nullable */
+  packageCount?: number | null;
+  /** @nullable */
+  weight?: number | null;
+  /** @nullable */
+  weightUOM?: string | null;
+  /** @nullable */
+  equipmentType?: string | null;
+  /** @nullable */
+  specialInstructions?: string | null;
+  /** @nullable */
+  loadResponseCode?: string | null;
   retryCount: number;
   /** @nullable */
   lastResponseCode?: number | null;
@@ -146,6 +191,19 @@ export interface EdiDocumentInput {
   notes?: string;
   transactionId?: string;
   status?: string;
+  currencyCode?: string;
+  invoiceNumber?: string;
+  invoiceDueDate?: string;
+  ackStatus?: string;
+  carrierName?: string;
+  proNumber?: string;
+  trackingNumber?: string;
+  packageCount?: number;
+  weight?: number;
+  weightUOM?: string;
+  equipmentType?: string;
+  specialInstructions?: string;
+  loadResponseCode?: string;
 }
 
 export interface EdiDocumentUpdate {
@@ -161,6 +219,19 @@ export interface EdiDocumentUpdate {
   shippingDetails?: string;
   notes?: string;
   x12Content?: string;
+  currencyCode?: string;
+  invoiceNumber?: string;
+  invoiceDueDate?: string;
+  ackStatus?: string;
+  carrierName?: string;
+  proNumber?: string;
+  trackingNumber?: string;
+  packageCount?: number;
+  weight?: number;
+  weightUOM?: string;
+  equipmentType?: string;
+  specialInstructions?: string;
+  loadResponseCode?: string;
 }
 
 export interface SendRequestInfo {
@@ -201,7 +272,7 @@ export interface InboundReceipt {
   sender?: string | null;
   /** @nullable */
   receiver?: string | null;
-  errors?: string[];
+  errors: string[];
 }
 
 export interface InboundMessage {
@@ -240,89 +311,35 @@ export interface Transaction {
   description?: string | null;
   /** @nullable */
   totalValue?: number | null;
-  documents?: EdiDocument[];
   createdAt: string;
   updatedAt: string;
+  documents: EdiDocument[];
+}
+
+export interface TransactionInput {
+  referenceNumber: string;
+  initiatorId: string;
+  description?: string;
+  totalValue?: number;
 }
 
 export interface DashboardSummary {
   totalDocuments: number;
-  outboundCount: number;
-  inboundCount: number;
-  deliveredCount: number;
-  failedCount: number;
-  draftCount: number;
-  pendingCount: number;
-  activeTransactions: number;
-  companiesCount: number;
+  pendingDocuments: number;
+  deliveredDocuments: number;
+  failedDocuments: number;
+  totalTransactions: number;
+  recentActivity: EdiDocument[];
 }
 
-export interface FlowStep {
-  step: string;
-  documentType: string;
-  sender: string;
-  receiver: string;
-  status: string;
-  sequenceOrder: number;
-  /** @nullable */
-  documentId?: string | null;
-  /** @nullable */
-  timestamp?: string | null;
-}
-
-export interface ActivityItem {
-  id: string;
-  type: string;
-  documentType: string;
-  direction: string;
-  status: string;
-  senderName: string;
-  receiverName: string;
-  /** @nullable */
-  referenceNumber?: string | null;
-  /** @nullable */
-  totalAmount?: number | null;
-  createdAt: string;
-}
-
-export interface DocumentStat {
-  documentType: string;
-  total: number;
-  delivered: number;
-  failed: number;
-  draft: number;
-  sent: number;
-}
-
-export interface AuditLog {
+export interface AuditLogEntry {
   id: string;
   action: string;
   entityType: string;
   entityId: string;
   /** @nullable */
+  userId?: string | null;
+  /** @nullable */
   details?: string | null;
   createdAt: string;
 }
-
-export type ListEdiDocumentsParams = {
-status?: string;
-direction?: string;
-documentType?: string;
-companyId?: string;
-};
-
-export type ListInboundMessagesParams = {
-status?: string;
-documentType?: string;
-};
-
-export type ListTransactionsParams = {
-status?: string;
-companyId?: string;
-};
-
-export type ListAuditLogsParams = {
-entityType?: string;
-entityId?: string;
-};
-

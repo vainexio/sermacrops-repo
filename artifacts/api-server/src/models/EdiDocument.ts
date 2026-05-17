@@ -15,8 +15,27 @@ export interface IEdiDocument extends Document {
   lineItems?: string;
   paymentTerms?: string;
   shippingDetails?: string;
-  x12Content?: string;
   notes?: string;
+  x12Content?: string;
+  // 850 / 810
+  currencyCode?: string;
+  // 810
+  invoiceNumber?: string;
+  invoiceDueDate?: string;
+  // 855
+  ackStatus?: string;
+  // 856
+  carrierName?: string;
+  proNumber?: string;
+  trackingNumber?: string;
+  packageCount?: number;
+  weight?: number;
+  weightUOM?: string;
+  // 204
+  equipmentType?: string;
+  specialInstructions?: string;
+  // 990
+  loadResponseCode?: string;
   retryCount: number;
   lastResponseCode?: number;
   lastResponseBody?: string;
@@ -43,8 +62,21 @@ const EdiDocumentSchema = new Schema<IEdiDocument>(
     lineItems: { type: String },
     paymentTerms: { type: String },
     shippingDetails: { type: String },
-    x12Content: { type: String },
     notes: { type: String },
+    x12Content: { type: String },
+    currencyCode: { type: String },
+    invoiceNumber: { type: String },
+    invoiceDueDate: { type: String },
+    ackStatus: { type: String },
+    carrierName: { type: String },
+    proNumber: { type: String },
+    trackingNumber: { type: String },
+    packageCount: { type: Number },
+    weight: { type: Number },
+    weightUOM: { type: String },
+    equipmentType: { type: String },
+    specialInstructions: { type: String },
+    loadResponseCode: { type: String },
     retryCount: { type: Number, default: 0 },
     lastResponseCode: { type: Number },
     lastResponseBody: { type: String },

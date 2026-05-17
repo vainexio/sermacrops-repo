@@ -33,18 +33,90 @@ const formSchema = z.object({
   paymentTerms: z.string().optional(),
   notes: z.string().optional(),
   lineItems: z.array(lineItemSchema).optional(),
+  // 850 / 810
+  currencyCode: z.string().optional(),
+  // 810
+  invoiceNumber: z.string().optional(),
+  invoiceDueDate: z.string().optional(),
+  // 855
+  ackStatus: z.string().optional(),
+  // 856
+  carrierName: z.string().optional(),
+  proNumber: z.string().optional(),
+  trackingNumber: z.string().optional(),
+  packageCount: z.coerce.number().optional(),
+  weight: z.coerce.number().optional(),
+  weightUOM: z.string().optional(),
+  // 204
+  equipmentType: z.string().optional(),
+  specialInstructions: z.string().optional(),
+  // 990
+  loadResponseCode: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-const DOC_TYPE_FIELDS: Record<string, string[]> = {
-  "850": ["poNumber", "shipDate", "deliveryDate", "paymentTerms", "lineItems"],
-  "855": ["poNumber", "referenceNumber"],
-  "856": ["poNumber", "shipDate", "referenceNumber", "lineItems"],
-  "810": ["poNumber", "referenceNumber", "paymentTerms", "shipDate", "lineItems"],
-  "204": ["referenceNumber", "shipDate", "deliveryDate"],
-  "990": ["referenceNumber"],
+type FieldKey = keyof FormValues;
+
+const DOC_TYPE_FIELDS: Record<string, FieldKey[]> = {
+  "850": ["poNumber", "shipDate", "deliveryDate", "paymentTerms", "currencyCode", "lineItems"],
+  "855": ["poNumber", "referenceNumber", "ackStatus"],
+  "856": ["poNumber", "referenceNumber", "shipDate", "carrierName", "proNumber", "trackingNumber", "packageCount", "weight", "weightUOM", "lineItems"],
+  "810": ["poNumber", "referenceNumber", "invoiceNumber", "invoiceDueDate", "paymentTerms", "currencyCode", "shipDate", "lineItems"],
+  "204": ["referenceNumber", "shipDate", "deliveryDate", "equipmentType", "weight", "weightUOM", "specialInstructions"],
+  "990": ["referenceNumber", "loadResponseCode"],
 };
+
+const FIELD_LABELS: Partial<Record<FieldKey, string>> = {
+  poNumber: "PO Number",
+  referenceNumber: "Reference #",
+  shipDate: "Ship Date",
+  deliveryDate: "Delivery Date",
+  paymentTerms: "Payment Terms",
+  currencyCode: "Currency Code",
+  invoiceNumber: "Invoice Number",
+  invoiceDueDate: "Invoice Due Date",
+  carrierName: "Carrier Name",
+  proNumber: "PRO Number",
+  trackingNumber: "Tracking Number",
+  packageCount: "Package Count",
+  weight: "Weight",
+  weightUOM: "Weight UOM",
+  equipmentType: "Equipment Type",
+  specialInstructions: "Special Instructions",
+};
+
+const FIELD_PLACEHOLDERS: Partial<Record<FieldKey, string>> = {
+  poNumber: "PO-2025-001",
+  referenceNumber: "REF-001",
+  paymentTerms: "Net 30",
+  currencyCode: "USD",
+  invoiceNumber: "INV-001",
+  carrierName: "FedEx Freight",
+  proNumber: "PRO-123456",
+  trackingNumber: "1Z999AA1012345678",
+  packageCount: "12",
+  weight: "2400",
+  weightUOM: "LB",
+  equipmentType: "53",
+  specialInstructions: "Handle with care — fragile cargo",
+};
+
+const SELECT_FIELDS: Partial<Record<FieldKey, Array<{ value: string; label: string }>>> = {
+  ackStatus: [
+    { value: "AC", label: "AC — Accepted" },
+    { value: "RJ", label: "RJ — Rejected" },
+    { value: "PA", label: "PA — Partial Accept" },
+  ],
+  loadResponseCode: [
+    { value: "A", label: "A — Accept" },
+    { value: "D", label: "D — Decline" },
+  ],
+};
+
+const DATE_FIELDS: FieldKey[] = ["shipDate", "deliveryDate", "invoiceDueDate"];
+const TEXTAREA_FIELDS: FieldKey[] = ["specialInstructions"];
+const NUMBER_FIELDS: FieldKey[] = ["packageCount", "weight"];
 
 export default function DocumentNew() {
   const [, setLocation] = useLocation();
@@ -58,7 +130,7 @@ export default function DocumentNew() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { documentType: "", direction: "outbound", senderId: "", receiverId: "", lineItems: [] },
+    defaultValues: { documentType: "", direction: "outbound", senderId: "", receiverId: "", lineItems: [], currencyCode: "USD", weightUOM: "LB", ackStatus: "AC", loadResponseCode: "A" },
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lineItems" });
@@ -76,6 +148,7 @@ export default function DocumentNew() {
 
     try {
       const doc = await createDoc.mutateAsync({ data: payload as never });
+      setX12Preview(doc.x12Content ?? null);
       queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey() });
 
       if (action === "send") {
@@ -91,6 +164,65 @@ export default function DocumentNew() {
   }
 
   const isPending = createDoc.isPending || sendDoc.isPending;
+
+  function renderField(key: FieldKey) {
+    if (key === "lineItems") return null;
+
+    if (SELECT_FIELDS[key]) {
+      return (
+        <FormField key={key} control={form.control} name={key as never} render={({ field }) => (
+          <FormItem>
+            <FormLabel>{FIELD_LABELS[key] ?? key}</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value as string}>
+              <FormControl>
+                <SelectTrigger data-testid={`select-${key}`}>
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {SELECT_FIELDS[key]!.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )} />
+      );
+    }
+
+    if (TEXTAREA_FIELDS.includes(key)) {
+      return (
+        <FormField key={key} control={form.control} name={key as never} render={({ field }) => (
+          <FormItem className="col-span-2">
+            <FormLabel>{FIELD_LABELS[key] ?? key}</FormLabel>
+            <FormControl>
+              <Textarea data-testid={`textarea-${key}`} placeholder={FIELD_PLACEHOLDERS[key]} rows={2} value={field.value as string} onChange={field.onChange} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+      );
+    }
+
+    return (
+      <FormField key={key} control={form.control} name={key as never} render={({ field }) => (
+        <FormItem>
+          <FormLabel>{FIELD_LABELS[key] ?? key}</FormLabel>
+          <FormControl>
+            <Input
+              data-testid={`input-${key}`}
+              type={DATE_FIELDS.includes(key) ? "date" : NUMBER_FIELDS.includes(key) ? "number" : "text"}
+              placeholder={FIELD_PLACEHOLDERS[key]}
+              {...field}
+              value={field.value as string}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )} />
+    );
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -166,7 +298,14 @@ export default function DocumentNew() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {companies?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {companies?.map(c => (
+                          <SelectItem key={c.id} value={c.id}>
+                            <span>{c.name}</span>
+                            {(c.city || c.state) && (
+                              <span className="text-muted-foreground ml-1 text-xs">· {[c.city, c.state].filter(Boolean).join(", ")}</span>
+                            )}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -182,7 +321,14 @@ export default function DocumentNew() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {companies?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {companies?.map(c => (
+                          <SelectItem key={c.id} value={c.id}>
+                            <span>{c.name}</span>
+                            {(c.city || c.state) && (
+                              <span className="text-muted-foreground ml-1 text-xs">· {[c.city, c.state].filter(Boolean).join(", ")}</span>
+                            )}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -191,56 +337,15 @@ export default function DocumentNew() {
               </div>
             </div>
 
-            {/* Dynamic fields */}
-            {docType && (
+            {/* Dynamic doc-type-specific fields */}
+            {docType && showFields.filter(f => f !== "lineItems").length > 0 && (
               <div className="bg-card border border-card-border rounded-lg p-5 space-y-4">
-                <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Document Details</h2>
+                <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                  Document Details
+                  <span className="ml-2 text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono normal-case tracking-normal">EDI {docType}</span>
+                </h2>
                 <div className="grid grid-cols-2 gap-3">
-                  {showFields.includes("poNumber") && (
-                    <FormField control={form.control} name="poNumber" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PO Number</FormLabel>
-                        <FormControl><Input data-testid="input-po-number" placeholder="PO-2025-001" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
-                  {showFields.includes("referenceNumber") && (
-                    <FormField control={form.control} name="referenceNumber" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Reference #</FormLabel>
-                        <FormControl><Input data-testid="input-reference-number" placeholder="REF-001" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
-                  {showFields.includes("shipDate") && (
-                    <FormField control={form.control} name="shipDate" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ship Date</FormLabel>
-                        <FormControl><Input data-testid="input-ship-date" type="date" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
-                  {showFields.includes("deliveryDate") && (
-                    <FormField control={form.control} name="deliveryDate" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Date</FormLabel>
-                        <FormControl><Input data-testid="input-delivery-date" type="date" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
-                  {showFields.includes("paymentTerms") && (
-                    <FormField control={form.control} name="paymentTerms" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Terms</FormLabel>
-                        <FormControl><Input data-testid="input-payment-terms" placeholder="Net 30" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
+                  {showFields.filter(f => f !== "lineItems").map(renderField)}
                 </div>
                 <FormField control={form.control} name="notes" render={({ field }) => (
                   <FormItem>
@@ -343,6 +448,11 @@ export default function DocumentNew() {
             <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
               <Eye className="w-8 h-8 opacity-20" />
               <p className="text-xs">X12 preview will appear here after saving</p>
+              {docType && (
+                <p className="text-[10px] text-center max-w-[200px] opacity-70">
+                  EDI {docType} will include N1/N3/N4 address segments from company profiles
+                </p>
+              )}
             </div>
           )}
         </div>
