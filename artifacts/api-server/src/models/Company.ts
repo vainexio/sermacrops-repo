@@ -27,7 +27,7 @@ const CompanySchema = new Schema<ICompany>(
     city: { type: String },
     state: { type: String },
     zip: { type: String },
-    country: { type: String, default: "US" },
+    country: { type: String, default: "PH" },
     contactEmail: { type: String },
     contactPhone: { type: String },
     isActive: { type: Boolean, default: true },

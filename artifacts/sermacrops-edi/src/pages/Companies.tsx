@@ -19,7 +19,7 @@ const schema = z.object({
   addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
   city: z.string().optional(),
-  state: z.string().max(2, "2-letter code").optional(),
+  state: z.string().optional(),
   zip: z.string().optional(),
   country: z.string().optional(),
   contactEmail: z.string().email().optional().or(z.literal("")),
@@ -54,12 +54,12 @@ export default function Companies() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", ediId: "", type: "", addressLine1: "", addressLine2: "", city: "", state: "", zip: "", country: "US", contactEmail: "", contactPhone: "" },
+    defaultValues: { name: "", ediId: "", type: "", addressLine1: "", addressLine2: "", city: "", state: "", zip: "", country: "PH", contactEmail: "", contactPhone: "" },
   });
 
   function openCreate() {
     setEditId(null);
-    form.reset({ name: "", ediId: "", type: "", addressLine1: "", addressLine2: "", city: "", state: "", zip: "", country: "US", contactEmail: "", contactPhone: "" });
+    form.reset({ name: "", ediId: "", type: "", addressLine1: "", addressLine2: "", city: "", state: "", zip: "", country: "PH", contactEmail: "", contactPhone: "" });
     setOpen(true);
   }
 
@@ -221,41 +221,41 @@ export default function Companies() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address (used in EDI N1/N3/N4 segments)</p>
                 <FormField control={form.control} name="addressLine1" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Street Address</FormLabel>
-                    <FormControl><Input data-testid="input-address-line1" placeholder="123 Commerce Blvd" {...field} /></FormControl>
+                    <FormLabel>Street / Barangay</FormLabel>
+                    <FormControl><Input data-testid="input-address-line1" placeholder="123 Rizal Ave, Brgy. San Miguel" {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="addressLine2" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Suite / Unit</FormLabel>
-                    <FormControl><Input data-testid="input-address-line2" placeholder="Suite 400" {...field} /></FormControl>
+                    <FormLabel>Building / Unit</FormLabel>
+                    <FormControl><Input data-testid="input-address-line2" placeholder="Unit 4B, Bldg. A" {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <div className="grid grid-cols-3 gap-2">
                   <FormField control={form.control} name="city" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl><Input data-testid="input-city" placeholder="Miami" {...field} /></FormControl>
+                      <FormLabel>City / Municipality</FormLabel>
+                      <FormControl><Input data-testid="input-city" placeholder="Davao City" {...field} /></FormControl>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="state" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl><Input data-testid="input-state" placeholder="FL" maxLength={2} {...field} /></FormControl>
+                      <FormLabel>Province / Region</FormLabel>
+                      <FormControl><Input data-testid="input-state" placeholder="Davao del Sur" maxLength={100} {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="zip" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>ZIP</FormLabel>
-                      <FormControl><Input data-testid="input-zip" placeholder="33101" {...field} /></FormControl>
+                      <FormLabel>ZIP Code</FormLabel>
+                      <FormControl><Input data-testid="input-zip" placeholder="8000" {...field} /></FormControl>
                     </FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="country" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Country</FormLabel>
-                    <FormControl><Input data-testid="input-country" placeholder="US" {...field} /></FormControl>
+                    <FormControl><Input data-testid="input-country" placeholder="PH" {...field} /></FormControl>
                   </FormItem>
                 )} />
               </div>

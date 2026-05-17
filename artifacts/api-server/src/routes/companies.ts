@@ -15,7 +15,7 @@ function fmt(c: InstanceType<typeof Company>) {
     city: o.city ?? null,
     state: o.state ?? null,
     zip: o.zip ?? null,
-    country: o.country ?? "US",
+    country: o.country ?? "PH",
     contactEmail: o.contactEmail ?? null,
     contactPhone: o.contactPhone ?? null,
     isActive: o.isActive,
@@ -31,7 +31,7 @@ router.get("/companies", async (_req, res): Promise<void> => {
 router.post("/companies", async (req, res): Promise<void> => {
   const { name, ediId, type, addressLine1, addressLine2, city, state, zip, country, contactEmail, contactPhone, isActive } = req.body;
   if (!name || !ediId || !type) { res.status(400).json({ error: "name, ediId, type required" }); return; }
-  const company = await Company.create({ name, ediId, type, addressLine1, addressLine2, city, state, zip, country: country ?? "US", contactEmail, contactPhone, isActive: isActive !== false });
+  const company = await Company.create({ name, ediId, type, addressLine1, addressLine2, city, state, zip, country: country ?? "PH", contactEmail, contactPhone, isActive: isActive !== false });
   res.status(201).json(fmt(company));
 });
 
