@@ -1,22 +1,33 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SERMACROPS EDI Process Flow Manager API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: companies
+    description: Company management
+  - name: partnerEndpoints
+    description: Partner endpoint configuration
+  - name: ediDocuments
+    description: EDI document management
+  - name: transactions
+    description: EDI transaction tracking
+  - name: inbound
+    description: Inbound EDI handling
+  - name: dashboard
+    description: Dashboard summaries
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,517 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # --- Companies ---
+  /companies:
+    get:
+      operationId: listCompanies
+      tags: [companies]
+      summary: List all companies
+      responses:
+        "200":
+          description: List of companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Company"
+    post:
+      operationId: createCompany
+      tags: [companies]
+      summary: Create a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+
+  /companies/{id}:
+    get:
+      operationId: getCompany
+      tags: [companies]
+      summary: Get a company
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+    patch:
+      operationId: updateCompany
+      tags: [companies]
+      summary: Update a company
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+    delete:
+      operationId: deleteCompany
+      tags: [companies]
+      summary: Delete a company
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # --- Partner Endpoints ---
+  /partner-endpoints:
+    get:
+      operationId: listPartnerEndpoints
+      tags: [partnerEndpoints]
+      summary: List all partner endpoints
+      responses:
+        "200":
+          description: List of partner endpoints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerEndpoint"
+    post:
+      operationId: createPartnerEndpoint
+      tags: [partnerEndpoints]
+      summary: Create a partner endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerEndpointInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerEndpoint"
+
+  /partner-endpoints/{id}:
+    get:
+      operationId: getPartnerEndpoint
+      tags: [partnerEndpoints]
+      summary: Get a partner endpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Partner endpoint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerEndpoint"
+    patch:
+      operationId: updatePartnerEndpoint
+      tags: [partnerEndpoints]
+      summary: Update a partner endpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerEndpointUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerEndpoint"
+    delete:
+      operationId: deletePartnerEndpoint
+      tags: [partnerEndpoints]
+      summary: Delete a partner endpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # --- EDI Documents ---
+  /edi-documents:
+    get:
+      operationId: listEdiDocuments
+      tags: [ediDocuments]
+      summary: List EDI documents
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: direction
+          in: query
+          schema:
+            type: string
+        - name: documentType
+          in: query
+          schema:
+            type: string
+        - name: companyId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of EDI documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EdiDocument"
+    post:
+      operationId: createEdiDocument
+      tags: [ediDocuments]
+      summary: Create an EDI document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EdiDocumentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EdiDocument"
+
+  /edi-documents/{id}:
+    get:
+      operationId: getEdiDocument
+      tags: [ediDocuments]
+      summary: Get an EDI document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: EDI document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EdiDocument"
+    patch:
+      operationId: updateEdiDocument
+      tags: [ediDocuments]
+      summary: Update an EDI document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EdiDocumentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EdiDocument"
+    delete:
+      operationId: deleteEdiDocument
+      tags: [ediDocuments]
+      summary: Delete an EDI document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /edi-documents/{id}/send:
+    post:
+      operationId: sendEdiDocument
+      tags: [ediDocuments]
+      summary: Send an EDI document to partner endpoint
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Send result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendResult"
+
+  /edi-documents/{id}/preview:
+    get:
+      operationId: previewEdiDocument
+      tags: [ediDocuments]
+      summary: Get X12 preview of an EDI document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: X12 preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/X12Preview"
+
+  # --- Inbound EDI ---
+  /edi/inbound:
+    post:
+      operationId: receiveInbound
+      tags: [inbound]
+      summary: Receive inbound EDI document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InboundPayload"
+      responses:
+        "200":
+          description: Processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundReceipt"
+
+  /inbound-messages:
+    get:
+      operationId: listInboundMessages
+      tags: [inbound]
+      summary: List inbound messages
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: documentType
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of inbound messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InboundMessage"
+
+  /inbound-messages/{id}:
+    get:
+      operationId: getInboundMessage
+      tags: [inbound]
+      summary: Get an inbound message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Inbound message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundMessage"
+
+  # --- Transactions ---
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List all EDI transactions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: companyId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      tags: [transactions]
+      summary: Get a transaction with its documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  # --- Dashboard ---
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get overall dashboard summary stats
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/flow:
+    get:
+      operationId: getOrderTocashFlow
+      tags: [dashboard]
+      summary: Get order-to-cash process flow status
+      responses:
+        "200":
+          description: Flow
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FlowStep"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent transaction activity feed
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/document-stats:
+    get:
+      operationId: getDocumentStats
+      tags: [dashboard]
+      summary: Get document counts by type and status
+      responses:
+        "200":
+          description: Document stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocumentStat"
+
+  # --- Audit Logs ---
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags: [transactions]
+      summary: List audit log entries
+      parameters:
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +556,478 @@ components:
       required:
         - status
 
+    # Company
+    Company:
+      type: object
+      required: [id, name, ediId, type, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ediId:
+          type: string
+        type:
+          type: string
+          description: "Role: manufacturer, buyer, supplier, logistics"
+        address:
+          type: ["string", "null"]
+        contactEmail:
+          type: ["string", "null"]
+        contactPhone:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    CompanyInput:
+      type: object
+      required: [name, ediId, type]
+      properties:
+        name:
+          type: string
+        ediId:
+          type: string
+        type:
+          type: string
+        address:
+          type: string
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        isActive:
+          type: boolean
+
+    CompanyUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        ediId:
+          type: string
+        type:
+          type: string
+        address:
+          type: string
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        isActive:
+          type: boolean
+
+    # Partner Endpoint
+    PartnerEndpoint:
+      type: object
+      required: [id, companyId, name, url, authType, createdAt]
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        companyName:
+          type: ["string", "null"]
+        name:
+          type: string
+        url:
+          type: string
+        authType:
+          type: string
+          description: "none, api_key, bearer_token, basic"
+        apiKey:
+          type: ["string", "null"]
+        bearerToken:
+          type: ["string", "null"]
+        customHeaders:
+          type: ["string", "null"]
+          description: "JSON string of custom headers"
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    PartnerEndpointInput:
+      type: object
+      required: [companyId, name, url, authType]
+      properties:
+        companyId:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+        authType:
+          type: string
+        apiKey:
+          type: string
+        bearerToken:
+          type: string
+        customHeaders:
+          type: string
+        isActive:
+          type: boolean
+
+    PartnerEndpointUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        authType:
+          type: string
+        apiKey:
+          type: string
+        bearerToken:
+          type: string
+        customHeaders:
+          type: string
+        isActive:
+          type: boolean
+
+    # EDI Document
+    EdiDocument:
+      type: object
+      required: [id, documentType, direction, status, senderId, receiverId, controlNumber, createdAt]
+      properties:
+        id:
+          type: integer
+        documentType:
+          type: string
+          description: "850, 855, 856, 810, 204, 990"
+        direction:
+          type: string
+          description: "outbound, inbound"
+        status:
+          type: string
+          description: "draft, ready, sent, delivered, failed, retry_pending"
+        senderId:
+          type: integer
+        senderName:
+          type: ["string", "null"]
+        receiverId:
+          type: integer
+        receiverName:
+          type: ["string", "null"]
+        controlNumber:
+          type: string
+        referenceNumber:
+          type: ["string", "null"]
+        poNumber:
+          type: ["string", "null"]
+        shipDate:
+          type: ["string", "null"]
+        deliveryDate:
+          type: ["string", "null"]
+        totalAmount:
+          type: ["number", "null"]
+        lineItems:
+          type: ["string", "null"]
+          description: "JSON array of line items"
+        paymentTerms:
+          type: ["string", "null"]
+        shippingDetails:
+          type: ["string", "null"]
+          description: "JSON object"
+        x12Content:
+          type: ["string", "null"]
+          description: "Raw X12 EDI content"
+        notes:
+          type: ["string", "null"]
+        retryCount:
+          type: integer
+        lastResponseCode:
+          type: ["integer", "null"]
+        lastResponseBody:
+          type: ["string", "null"]
+        sentAt:
+          type: ["string", "null"]
+        deliveredAt:
+          type: ["string", "null"]
+        transactionId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    EdiDocumentInput:
+      type: object
+      required: [documentType, direction, senderId, receiverId]
+      properties:
+        documentType:
+          type: string
+        direction:
+          type: string
+        senderId:
+          type: integer
+        receiverId:
+          type: integer
+        referenceNumber:
+          type: string
+        poNumber:
+          type: string
+        shipDate:
+          type: string
+        deliveryDate:
+          type: string
+        totalAmount:
+          type: number
+        lineItems:
+          type: string
+        paymentTerms:
+          type: string
+        shippingDetails:
+          type: string
+        notes:
+          type: string
+        transactionId:
+          type: integer
+        status:
+          type: string
+
+    EdiDocumentUpdate:
+      type: object
+      properties:
+        documentType:
+          type: string
+        status:
+          type: string
+        referenceNumber:
+          type: string
+        poNumber:
+          type: string
+        shipDate:
+          type: string
+        deliveryDate:
+          type: string
+        totalAmount:
+          type: number
+        lineItems:
+          type: string
+        paymentTerms:
+          type: string
+        shippingDetails:
+          type: string
+        notes:
+          type: string
+        x12Content:
+          type: string
+
+    SendResult:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        responseCode:
+          type: ["integer", "null"]
+        responseBody:
+          type: ["string", "null"]
+        sentAt:
+          type: ["string", "null"]
+
+    X12Preview:
+      type: object
+      required: [content, documentType]
+      properties:
+        content:
+          type: string
+        documentType:
+          type: string
+
+    # Inbound
+    InboundPayload:
+      type: object
+      required: [x12Content]
+      properties:
+        x12Content:
+          type: string
+
+    InboundReceipt:
+      type: object
+      required: [success, messageId]
+      properties:
+        success:
+          type: boolean
+        messageId:
+          type: integer
+        documentType:
+          type: ["string", "null"]
+        sender:
+          type: ["string", "null"]
+        receiver:
+          type: ["string", "null"]
+        errors:
+          type: array
+          items:
+            type: string
+
+    InboundMessage:
+      type: object
+      required: [id, rawPayload, status, createdAt]
+      properties:
+        id:
+          type: integer
+        documentType:
+          type: ["string", "null"]
+        senderId:
+          type: ["integer", "null"]
+        senderName:
+          type: ["string", "null"]
+        receiverId:
+          type: ["integer", "null"]
+        receiverName:
+          type: ["string", "null"]
+        rawPayload:
+          type: string
+        parsedData:
+          type: ["string", "null"]
+        status:
+          type: string
+          description: "received, processing, processed, error"
+        validationErrors:
+          type: ["string", "null"]
+        controlNumber:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        processedAt:
+          type: ["string", "null"]
+
+    # Transaction
+    Transaction:
+      type: object
+      required: [id, referenceNumber, status, initiatorId, createdAt]
+      properties:
+        id:
+          type: integer
+        referenceNumber:
+          type: string
+        status:
+          type: string
+          description: "open, in_progress, completed, cancelled"
+        initiatorId:
+          type: integer
+        initiatorName:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        totalValue:
+          type: ["number", "null"]
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/EdiDocument"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    # Dashboard
+    DashboardSummary:
+      type: object
+      required: [totalDocuments, outboundCount, inboundCount, deliveredCount, failedCount, draftCount, pendingCount, activeTransactions, companiesCount]
+      properties:
+        totalDocuments:
+          type: integer
+        outboundCount:
+          type: integer
+        inboundCount:
+          type: integer
+        deliveredCount:
+          type: integer
+        failedCount:
+          type: integer
+        draftCount:
+          type: integer
+        pendingCount:
+          type: integer
+        activeTransactions:
+          type: integer
+        companiesCount:
+          type: integer
+
+    FlowStep:
+      type: object
+      required: [step, documentType, sender, receiver, status, sequenceOrder]
+      properties:
+        step:
+          type: string
+        documentType:
+          type: string
+        sender:
+          type: string
+        receiver:
+          type: string
+        status:
+          type: string
+        sequenceOrder:
+          type: integer
+        documentId:
+          type: ["integer", "null"]
+        timestamp:
+          type: ["string", "null"]
+
+    ActivityItem:
+      type: object
+      required: [id, type, documentType, direction, status, senderName, receiverName, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        documentType:
+          type: string
+        direction:
+          type: string
+        status:
+          type: string
+        senderName:
+          type: string
+        receiverName:
+          type: string
+        referenceNumber:
+          type: ["string", "null"]
+        totalAmount:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+
+    DocumentStat:
+      type: object
+      required: [documentType, total, delivered, failed, draft, sent]
+      properties:
+        documentType:
+          type: string
+        total:
+          type: integer
+        delivered:
+          type: integer
+        failed:
+          type: integer
+        draft:
+          type: integer
+        sent:
+          type: integer
+
+    AuditLog:
+      type: object
+      required: [id, action, entityType, entityId, createdAt]
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: integer
+        details:
+          type: ["string", "null"]
+        createdAt:
+          type: string

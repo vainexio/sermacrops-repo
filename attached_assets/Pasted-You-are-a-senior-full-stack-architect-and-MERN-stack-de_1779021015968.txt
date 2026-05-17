@@ -1,0 +1,175 @@
+You are a senior full-stack architect and MERN stack developer. Build a production-ready web app called “SERMACROPS EDI Process Flow Manager” for managing EDI transactions in an order-to-cash workflow.
+
+TECH STACK
+- Frontend: React
+- Backend: Node.js + Express
+- Database: MongoDB  (never use postgreSQL, i'll send u the mongoDB url when you ask, all data must be seeded into permanent database and not in-memory or mock) 
+- Deployable on Render.com
+- Use clean, modern enterprise UI inspired by an EDI dashboard
+- Keep the interface simple, readable, and business-focused
+
+CORE GOAL
+Build an EDI process flow manager for SERMACROPS Manufacturing that supports outbound and inbound EDI transactions, partner endpoint management, a document builder for X12 files, delivery validation, and centralized inbound receipt handling.
+
+BUSINESS FLOW
+The system follows an order-to-cash process starting from the Coffee Shop sending EDI 850 Purchase Order and ending with EDI 810 Invoice.
+
+CONNECTED COMPANIES
+- Coffee Shop
+- Raw Materials Supplier
+- Logistics
+
+EDI DOCUMENT TYPES
+Outbound documents supported:
+- EDI 855 – Purchase Order Acknowledgment
+- EDI 850 – Purchase Order
+- EDI 204 – Motor Carrier Load Tender
+- EDI 856 – Advance Ship Notice (ASN)
+- EDI 810 – Invoice
+
+Inbound documents supported:
+- EDI 850 – Purchase Order
+- EDI 855 – Purchase Order Acknowledgment
+- EDI 856 – Advance Ship Notice (ASN)
+- EDI 810 – Invoice
+- EDI 990 – Response to Load Tender
+
+REQUIRED FEATURES
+
+1) EDI Document Builder
+Create a dynamic EDI document builder that changes fields based on the selected transaction type and trading partner.
+- Include selection fields that only show valid options for the chosen document
+- Generate compliant X12 .x12 output files
+- Validate required fields before allowing send
+- Support a preview panel that shows the raw EDI text
+- Allow saving draft documents
+- Allow editing previously created documents
+- Include document templates for each transaction set
+- Auto-fill common company and partner data where possible
+
+2) Partner Endpoint Management
+Each partnered company must have a stored outbound endpoint configuration.
+- Save endpoint URL per partner
+- Store authentication type if needed
+- Allow headers, API key, or token configuration
+- Outbound EDI must be sent as a .x12 file through API
+- Track delivery attempts and response status
+- Validate success only when the partner endpoint responds with HTTP 200
+- Log response body, timestamp, and transaction ID
+- Support retry logic for failed sends
+- Show status: Draft, Ready, Sent, Delivered, Failed, Retry Pending
+
+3) Single Inbound Endpoint
+All inbound EDI documents must be received through one API endpoint.
+- Example route: /api/edi/inbound
+- Accept X12 payloads
+- Parse inbound document type
+- Identify sender and receiver
+- Store raw payload and parsed data
+- Validate required segments based on transaction set
+- Save inbound message history
+- Expose UI to view inbound documents and processing status
+
+4) Order-to-Cash Workflow
+Model the process flow from Coffee Shop to SERMACROPS and to Raw Materials Supplier / Logistics.
+- Support process visualization for outbound and inbound document movement
+- Show document sequence and state changes
+- Connect transaction records to the business workflow
+- Include a dashboard showing overall flow status
+- Make it easy to see which company sent what and when
+
+5) Document Requirements
+Each EDI document must contain all necessary information to complete the transaction.
+- Ensure each document has the proper partner identifiers, dates, line items, quantities, prices, shipping details, payment terms, and reference numbers where applicable
+- Enforce document-specific required data
+- Include validation rules so incomplete documents cannot be sent
+- Support multiple line items and product references
+- Include metadata such as sender, receiver, control numbers, and transaction status
+
+6) Dashboard and UI
+Create a clean dashboard similar to an enterprise integration platform.
+- Left-side or card-based message list
+- Detail panel showing selected transaction
+- Summary section with sender, receiver, date, amount, and item count
+- Flow diagram or status timeline for each transaction
+- Tabs for Messages, Integrations, Notifications, Companies, Documents, and Settings
+- Responsive layout for desktop and tablet
+- Use plain professional styling, no heavy texture effects
+
+7) Admin and Configuration
+Include admin tools for:
+- Managing companies and partner profiles
+- Managing endpoint settings
+- Mapping document types to partner requirements
+- Viewing logs and transaction history
+- Monitoring failed deliveries and inbound parse errors
+
+8) API DESIGN
+Design REST API endpoints for:
+- Authentication
+- Companies CRUD
+- Partner endpoints CRUD
+- EDI document CRUD
+- Outbound send API
+- Inbound receive API
+- Transaction logs
+- Status checks
+- Dashboard summaries
+
+9) DATABASE DESIGN
+Create MongoDB collections for:
+- users
+- companies
+- partnerEndpoints
+- ediDocuments
+- ediTransactions
+- inboundMessages
+- outboundMessages
+- auditLogs
+- settings
+
+10) DEPLOYMENT REQUIREMENTS
+The app must be ready to launch on Render.com.
+- Use environment variables
+- Include production build steps
+- Support MongoDB connection via environment config
+- Make backend deployment and frontend deployment straightforward
+- Include README documentation for setup, deployment, and API usage
+- Include sample seed data for the connected companies and sample transaction flow
+
+11) DELIVERABLES
+Generate:
+- Full MERN stack project structure
+- Frontend pages and components
+- Backend routes, controllers, models, and services
+- EDI builder logic
+- X12 generation and parsing utilities
+- Endpoint delivery service with HTTP 200 validation
+- Inbound receiver service
+- Documentation
+- Render deployment instructions
+- Sample data for Coffee Shop, Raw Materials Supplier, and Logistics
+- A polished UI that matches the EDI process manager concept
+
+IMPLEMENTATION NOTES
+- Use clean code and modular structure
+- Add error handling and validation everywhere
+- Make the app scalable for additional trading partners and future EDI transaction sets
+- Use modern React patterns
+- Use Express middleware properly
+- Keep the X12 builder flexible so additional document types can be added later
+- Ensure outbound and inbound message history is searchable and filterable
+
+OUTPUT FORMAT
+Provide:
+1. A complete system architecture
+2. Frontend component structure
+3. Backend folder structure
+4. Database schema design
+5. API route list
+6. Core workflow explanation
+7. Deployment steps for Render.com
+8. Sample code snippets for the most important parts
+9. A polished, production-ready implementation plan
+
+Build the app as if it will be used in a real manufacturing and supply-chain environment.
