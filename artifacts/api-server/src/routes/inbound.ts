@@ -29,8 +29,16 @@ async function fmtMsg(m: InstanceType<typeof InboundMessage>) {
 }
 
 router.post("/edi/inbound", async (req, res): Promise<void> => {
-  const { x12Content } = req.body;
-  if (!x12Content) { res.status(400).json({ error: "x12Content required" }); return; }
+  // Accept raw EDI-X12 body (text/plain, application/EDI-X12) or JSON { x12Content }
+  const contentType = req.headers["content-type"] ?? "";
+  let x12Content: string;
+  if (contentType.includes("application/json")) {
+    x12Content = req.body?.x12Content;
+  } else {
+    // raw body — express.text() not loaded, so read from req as buffer
+    x12Content = typeof req.body === "string" ? req.body : req.body?.toString?.() ?? "";
+  }
+  if (!x12Content || !x12Content.trim()) { res.status(400).json({ error: "x12Content required" }); return; }
 
   const docType = parseX12Type(x12Content);
   const controlNumber = parseX12ControlNumber(x12Content);
