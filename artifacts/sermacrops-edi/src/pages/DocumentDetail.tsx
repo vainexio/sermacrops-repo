@@ -192,10 +192,10 @@ export default function DocumentDetail() {
                   <dd className="text-xs font-medium text-foreground">{value}</dd>
                 </div>
               ))}
-              {doc.lastResponseBody && (
+              {doc.lastResponseBody && doc.status === "failed" && (
                 <div className="mt-2">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Last Response</p>
-                  <pre className="text-xs font-mono bg-muted/60 rounded p-2 overflow-x-auto">{doc.lastResponseBody}</pre>
+                  <pre className="text-xs font-mono bg-muted/60 rounded p-2 whitespace-pre-wrap break-all">{(() => { try { return JSON.stringify(JSON.parse(doc.lastResponseBody), null, 2); } catch { return doc.lastResponseBody; } })()}</pre>
                 </div>
               )}
             </dl>
