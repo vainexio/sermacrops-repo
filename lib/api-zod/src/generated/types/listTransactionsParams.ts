@@ -8,5 +8,5 @@
 
 export type ListTransactionsParams = {
 status?: string;
-companyId?: number;
+companyId?: string;
 };

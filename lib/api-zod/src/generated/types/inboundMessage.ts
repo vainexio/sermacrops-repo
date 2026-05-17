@@ -7,21 +7,20 @@
  */
 
 export interface InboundMessage {
-  id: number;
+  id: string;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */
-  senderId?: number | null;
+  senderId?: string | null;
   /** @nullable */
   senderName?: string | null;
   /** @nullable */
-  receiverId?: number | null;
+  receiverId?: string | null;
   /** @nullable */
   receiverName?: string | null;
   rawPayload: string;
   /** @nullable */
   parsedData?: string | null;
-  /** received, processing, processed, error */
   status: string;
   /** @nullable */
   validationErrors?: string | null;

@@ -7,23 +7,19 @@
  */
 
 export interface PartnerEndpoint {
-  id: number;
-  companyId: number;
+  id: string;
+  companyId: string;
   /** @nullable */
   companyName?: string | null;
   name: string;
   url: string;
-  /** none, api_key, bearer_token, basic */
   authType: string;
   /** @nullable */
   apiKey?: string | null;
   /** @nullable */
   bearerToken?: string | null;
-  /**
-     * JSON string of custom headers
-     * @nullable
-     */
+  /** @nullable */
   customHeaders?: string | null;
-  isActive?: boolean;
+  isActive: boolean;
   createdAt: string;
 }

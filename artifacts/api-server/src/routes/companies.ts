@@ -1,71 +1,42 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, companiesTable } from "@workspace/db";
-import {
-  CreateCompanyBody,
-  GetCompanyParams,
-  UpdateCompanyParams,
-  UpdateCompanyBody,
-  DeleteCompanyParams,
-} from "@workspace/api-zod";
+import { Company } from "../models/Company";
 
 const router: IRouter = Router();
 
-router.get("/companies", async (req, res): Promise<void> => {
-  const companies = await db.select().from(companiesTable).orderBy(companiesTable.name);
-  res.json(companies.map(c => ({ ...c, createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString() })));
+function fmt(c: InstanceType<typeof Company>) {
+  const o = c.toObject();
+  return { id: o._id.toString(), name: o.name, ediId: o.ediId, type: o.type, address: o.address ?? null, contactEmail: o.contactEmail ?? null, contactPhone: o.contactPhone ?? null, isActive: o.isActive, createdAt: o.createdAt.toISOString() };
+}
+
+router.get("/companies", async (_req, res): Promise<void> => {
+  const companies = await Company.find().sort({ name: 1 });
+  res.json(companies.map(fmt));
 });
 
 router.post("/companies", async (req, res): Promise<void> => {
-  const parsed = CreateCompanyBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [company] = await db.insert(companiesTable).values(parsed.data).returning();
-  res.status(201).json({ ...company, createdAt: company.createdAt.toISOString(), updatedAt: company.updatedAt.toISOString() });
+  const { name, ediId, type, address, contactEmail, contactPhone, isActive } = req.body;
+  if (!name || !ediId || !type) { res.status(400).json({ error: "name, ediId, type required" }); return; }
+  const company = await Company.create({ name, ediId, type, address, contactEmail, contactPhone, isActive: isActive !== false });
+  res.status(201).json(fmt(company));
 });
 
 router.get("/companies/:id", async (req, res): Promise<void> => {
-  const params = GetCompanyParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, params.data.id));
-  if (!company) {
-    res.status(404).json({ error: "Company not found" });
-    return;
-  }
-  res.json({ ...company, createdAt: company.createdAt.toISOString(), updatedAt: company.updatedAt.toISOString() });
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const company = await Company.findById(raw);
+  if (!company) { res.status(404).json({ error: "Company not found" }); return; }
+  res.json(fmt(company));
 });
 
 router.patch("/companies/:id", async (req, res): Promise<void> => {
-  const params = UpdateCompanyParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const parsed = UpdateCompanyBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [company] = await db.update(companiesTable).set(parsed.data).where(eq(companiesTable.id, params.data.id)).returning();
-  if (!company) {
-    res.status(404).json({ error: "Company not found" });
-    return;
-  }
-  res.json({ ...company, createdAt: company.createdAt.toISOString(), updatedAt: company.updatedAt.toISOString() });
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const company = await Company.findByIdAndUpdate(raw, { $set: req.body }, { new: true });
+  if (!company) { res.status(404).json({ error: "Company not found" }); return; }
+  res.json(fmt(company));
 });
 
 router.delete("/companies/:id", async (req, res): Promise<void> => {
-  const params = DeleteCompanyParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  await db.delete(companiesTable).where(eq(companiesTable.id, params.data.id));
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  await Company.findByIdAndDelete(raw);
   res.sendStatus(204);
 });
 

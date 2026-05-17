@@ -8,7 +8,7 @@
 
 export interface InboundReceipt {
   success: boolean;
-  messageId: number;
+  messageId: string;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */

@@ -8,5 +8,5 @@
 
 export type ListAuditLogsParams = {
 entityType?: string;
-entityId?: number;
+entityId?: string;
 };

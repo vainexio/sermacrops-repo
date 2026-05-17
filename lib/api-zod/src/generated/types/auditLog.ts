@@ -7,10 +7,10 @@
  */
 
 export interface AuditLog {
-  id: number;
+  id: string;
   action: string;
   entityType: string;
-  entityId: number;
+  entityId: string;
   /** @nullable */
   details?: string | null;
   createdAt: string;

@@ -7,10 +7,9 @@
  */
 
 export interface Company {
-  id: number;
+  id: string;
   name: string;
   ediId: string;
-  /** Role: manufacturer, buyer, supplier, logistics */
   type: string;
   /** @nullable */
   address?: string | null;
@@ -18,6 +17,6 @@ export interface Company {
   contactEmail?: string | null;
   /** @nullable */
   contactPhone?: string | null;
-  isActive?: boolean;
+  isActive: boolean;
   createdAt: string;
 }

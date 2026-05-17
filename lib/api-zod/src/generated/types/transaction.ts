@@ -8,11 +8,10 @@
 import type { EdiDocument } from './ediDocument';
 
 export interface Transaction {
-  id: number;
+  id: string;
   referenceNumber: string;
-  /** open, in_progress, completed, cancelled */
   status: string;
-  initiatorId: number;
+  initiatorId: string;
   /** @nullable */
   initiatorName?: string | null;
   /** @nullable */
@@ -21,5 +20,5 @@ export interface Transaction {
   totalValue?: number | null;
   documents?: EdiDocument[];
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 }

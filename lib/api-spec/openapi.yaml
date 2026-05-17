@@ -8,19 +8,12 @@ servers:
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: companies
-    description: Company management
   - name: partnerEndpoints
-    description: Partner endpoint configuration
   - name: ediDocuments
-    description: EDI document management
   - name: transactions
-    description: EDI transaction tracking
   - name: inbound
-    description: Inbound EDI handling
   - name: dashboard
-    description: Dashboard summaries
 
 paths:
   /healthz:
@@ -36,15 +29,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  # --- Companies ---
   /companies:
     get:
       operationId: listCompanies
       tags: [companies]
-      summary: List all companies
       responses:
         "200":
-          description: List of companies
+          description: OK
           content:
             application/json:
               schema:
@@ -54,7 +45,6 @@ paths:
     post:
       operationId: createCompany
       tags: [companies]
-      summary: Create a company
       requestBody:
         required: true
         content:
@@ -73,16 +63,15 @@ paths:
     get:
       operationId: getCompany
       tags: [companies]
-      summary: Get a company
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: Company
+          description: OK
           content:
             application/json:
               schema:
@@ -90,13 +79,12 @@ paths:
     patch:
       operationId: updateCompany
       tags: [companies]
-      summary: Update a company
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       requestBody:
         required: true
         content:
@@ -105,7 +93,7 @@ paths:
               $ref: "#/components/schemas/CompanyUpdate"
       responses:
         "200":
-          description: Updated
+          description: OK
           content:
             application/json:
               schema:
@@ -113,26 +101,23 @@ paths:
     delete:
       operationId: deleteCompany
       tags: [companies]
-      summary: Delete a company
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "204":
           description: Deleted
 
-  # --- Partner Endpoints ---
   /partner-endpoints:
     get:
       operationId: listPartnerEndpoints
       tags: [partnerEndpoints]
-      summary: List all partner endpoints
       responses:
         "200":
-          description: List of partner endpoints
+          description: OK
           content:
             application/json:
               schema:
@@ -142,7 +127,6 @@ paths:
     post:
       operationId: createPartnerEndpoint
       tags: [partnerEndpoints]
-      summary: Create a partner endpoint
       requestBody:
         required: true
         content:
@@ -161,16 +145,15 @@ paths:
     get:
       operationId: getPartnerEndpoint
       tags: [partnerEndpoints]
-      summary: Get a partner endpoint
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: Partner endpoint
+          description: OK
           content:
             application/json:
               schema:
@@ -178,13 +161,12 @@ paths:
     patch:
       operationId: updatePartnerEndpoint
       tags: [partnerEndpoints]
-      summary: Update a partner endpoint
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       requestBody:
         required: true
         content:
@@ -193,7 +175,7 @@ paths:
               $ref: "#/components/schemas/PartnerEndpointUpdate"
       responses:
         "200":
-          description: Updated
+          description: OK
           content:
             application/json:
               schema:
@@ -201,23 +183,20 @@ paths:
     delete:
       operationId: deletePartnerEndpoint
       tags: [partnerEndpoints]
-      summary: Delete a partner endpoint
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "204":
           description: Deleted
 
-  # --- EDI Documents ---
   /edi-documents:
     get:
       operationId: listEdiDocuments
       tags: [ediDocuments]
-      summary: List EDI documents
       parameters:
         - name: status
           in: query
@@ -234,10 +213,10 @@ paths:
         - name: companyId
           in: query
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: List of EDI documents
+          description: OK
           content:
             application/json:
               schema:
@@ -247,7 +226,6 @@ paths:
     post:
       operationId: createEdiDocument
       tags: [ediDocuments]
-      summary: Create an EDI document
       requestBody:
         required: true
         content:
@@ -266,16 +244,15 @@ paths:
     get:
       operationId: getEdiDocument
       tags: [ediDocuments]
-      summary: Get an EDI document
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: EDI document
+          description: OK
           content:
             application/json:
               schema:
@@ -283,13 +260,12 @@ paths:
     patch:
       operationId: updateEdiDocument
       tags: [ediDocuments]
-      summary: Update an EDI document
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       requestBody:
         required: true
         content:
@@ -298,7 +274,7 @@ paths:
               $ref: "#/components/schemas/EdiDocumentUpdate"
       responses:
         "200":
-          description: Updated
+          description: OK
           content:
             application/json:
               schema:
@@ -306,13 +282,12 @@ paths:
     delete:
       operationId: deleteEdiDocument
       tags: [ediDocuments]
-      summary: Delete an EDI document
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "204":
           description: Deleted
@@ -321,16 +296,15 @@ paths:
     post:
       operationId: sendEdiDocument
       tags: [ediDocuments]
-      summary: Send an EDI document to partner endpoint
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: Send result
+          description: OK
           content:
             application/json:
               schema:
@@ -340,27 +314,24 @@ paths:
     get:
       operationId: previewEdiDocument
       tags: [ediDocuments]
-      summary: Get X12 preview of an EDI document
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: X12 preview
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/X12Preview"
 
-  # --- Inbound EDI ---
   /edi/inbound:
     post:
       operationId: receiveInbound
       tags: [inbound]
-      summary: Receive inbound EDI document
       requestBody:
         required: true
         content:
@@ -369,7 +340,7 @@ paths:
               $ref: "#/components/schemas/InboundPayload"
       responses:
         "200":
-          description: Processed
+          description: OK
           content:
             application/json:
               schema:
@@ -379,7 +350,6 @@ paths:
     get:
       operationId: listInboundMessages
       tags: [inbound]
-      summary: List inbound messages
       parameters:
         - name: status
           in: query
@@ -391,7 +361,7 @@ paths:
             type: string
       responses:
         "200":
-          description: List of inbound messages
+          description: OK
           content:
             application/json:
               schema:
@@ -403,27 +373,24 @@ paths:
     get:
       operationId: getInboundMessage
       tags: [inbound]
-      summary: Get an inbound message
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: Inbound message
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/InboundMessage"
 
-  # --- Transactions ---
   /transactions:
     get:
       operationId: listTransactions
       tags: [transactions]
-      summary: List all EDI transactions
       parameters:
         - name: status
           in: query
@@ -432,10 +399,10 @@ paths:
         - name: companyId
           in: query
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: List of transactions
+          description: OK
           content:
             application/json:
               schema:
@@ -447,30 +414,27 @@ paths:
     get:
       operationId: getTransaction
       tags: [transactions]
-      summary: Get a transaction with its documents
       parameters:
         - name: id
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: Transaction
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
 
-  # --- Dashboard ---
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
       tags: [dashboard]
-      summary: Get overall dashboard summary stats
       responses:
         "200":
-          description: Summary
+          description: OK
           content:
             application/json:
               schema:
@@ -480,10 +444,9 @@ paths:
     get:
       operationId: getOrderTocashFlow
       tags: [dashboard]
-      summary: Get order-to-cash process flow status
       responses:
         "200":
-          description: Flow
+          description: OK
           content:
             application/json:
               schema:
@@ -495,10 +458,9 @@ paths:
     get:
       operationId: getRecentActivity
       tags: [dashboard]
-      summary: Get recent transaction activity feed
       responses:
         "200":
-          description: Recent activity
+          description: OK
           content:
             application/json:
               schema:
@@ -510,10 +472,9 @@ paths:
     get:
       operationId: getDocumentStats
       tags: [dashboard]
-      summary: Get document counts by type and status
       responses:
         "200":
-          description: Document stats
+          description: OK
           content:
             application/json:
               schema:
@@ -521,12 +482,10 @@ paths:
                 items:
                   $ref: "#/components/schemas/DocumentStat"
 
-  # --- Audit Logs ---
   /audit-logs:
     get:
       operationId: listAuditLogs
-      tags: [transactions]
-      summary: List audit log entries
+      tags: [dashboard]
       parameters:
         - name: entityType
           in: query
@@ -535,10 +494,10 @@ paths:
         - name: entityId
           in: query
           schema:
-            type: integer
+            type: string
       responses:
         "200":
-          description: List of audit logs
+          description: OK
           content:
             application/json:
               schema:
@@ -550,26 +509,23 @@ components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
-    # Company
     Company:
       type: object
-      required: [id, name, ediId, type, createdAt]
+      required: [id, name, ediId, type, isActive, createdAt]
       properties:
         id:
-          type: integer
+          type: string
         name:
           type: string
         ediId:
           type: string
         type:
           type: string
-          description: "Role: manufacturer, buyer, supplier, logistics"
         address:
           type: ["string", "null"]
         contactEmail:
@@ -618,15 +574,14 @@ components:
         isActive:
           type: boolean
 
-    # Partner Endpoint
     PartnerEndpoint:
       type: object
-      required: [id, companyId, name, url, authType, createdAt]
+      required: [id, companyId, name, url, authType, isActive, createdAt]
       properties:
         id:
-          type: integer
+          type: string
         companyId:
-          type: integer
+          type: string
         companyName:
           type: ["string", "null"]
         name:
@@ -635,14 +590,12 @@ components:
           type: string
         authType:
           type: string
-          description: "none, api_key, bearer_token, basic"
         apiKey:
           type: ["string", "null"]
         bearerToken:
           type: ["string", "null"]
         customHeaders:
           type: ["string", "null"]
-          description: "JSON string of custom headers"
         isActive:
           type: boolean
         createdAt:
@@ -653,7 +606,7 @@ components:
       required: [companyId, name, url, authType]
       properties:
         companyId:
-          type: integer
+          type: string
         name:
           type: string
         url:
@@ -687,28 +640,24 @@ components:
         isActive:
           type: boolean
 
-    # EDI Document
     EdiDocument:
       type: object
-      required: [id, documentType, direction, status, senderId, receiverId, controlNumber, createdAt]
+      required: [id, documentType, direction, status, senderId, receiverId, controlNumber, retryCount, createdAt, updatedAt]
       properties:
         id:
-          type: integer
+          type: string
         documentType:
           type: string
-          description: "850, 855, 856, 810, 204, 990"
         direction:
           type: string
-          description: "outbound, inbound"
         status:
           type: string
-          description: "draft, ready, sent, delivered, failed, retry_pending"
         senderId:
-          type: integer
+          type: string
         senderName:
           type: ["string", "null"]
         receiverId:
-          type: integer
+          type: string
         receiverName:
           type: ["string", "null"]
         controlNumber:
@@ -725,15 +674,12 @@ components:
           type: ["number", "null"]
         lineItems:
           type: ["string", "null"]
-          description: "JSON array of line items"
         paymentTerms:
           type: ["string", "null"]
         shippingDetails:
           type: ["string", "null"]
-          description: "JSON object"
         x12Content:
           type: ["string", "null"]
-          description: "Raw X12 EDI content"
         notes:
           type: ["string", "null"]
         retryCount:
@@ -747,7 +693,7 @@ components:
         deliveredAt:
           type: ["string", "null"]
         transactionId:
-          type: ["integer", "null"]
+          type: ["string", "null"]
         createdAt:
           type: string
         updatedAt:
@@ -762,9 +708,9 @@ components:
         direction:
           type: string
         senderId:
-          type: integer
+          type: string
         receiverId:
-          type: integer
+          type: string
         referenceNumber:
           type: string
         poNumber:
@@ -784,7 +730,7 @@ components:
         notes:
           type: string
         transactionId:
-          type: integer
+          type: string
         status:
           type: string
 
@@ -840,7 +786,6 @@ components:
         documentType:
           type: string
 
-    # Inbound
     InboundPayload:
       type: object
       required: [x12Content]
@@ -855,7 +800,7 @@ components:
         success:
           type: boolean
         messageId:
-          type: integer
+          type: string
         documentType:
           type: ["string", "null"]
         sender:
@@ -872,15 +817,15 @@ components:
       required: [id, rawPayload, status, createdAt]
       properties:
         id:
-          type: integer
+          type: string
         documentType:
           type: ["string", "null"]
         senderId:
-          type: ["integer", "null"]
+          type: ["string", "null"]
         senderName:
           type: ["string", "null"]
         receiverId:
-          type: ["integer", "null"]
+          type: ["string", "null"]
         receiverName:
           type: ["string", "null"]
         rawPayload:
@@ -889,7 +834,6 @@ components:
           type: ["string", "null"]
         status:
           type: string
-          description: "received, processing, processed, error"
         validationErrors:
           type: ["string", "null"]
         controlNumber:
@@ -899,20 +843,18 @@ components:
         processedAt:
           type: ["string", "null"]
 
-    # Transaction
     Transaction:
       type: object
-      required: [id, referenceNumber, status, initiatorId, createdAt]
+      required: [id, referenceNumber, status, initiatorId, createdAt, updatedAt]
       properties:
         id:
-          type: integer
+          type: string
         referenceNumber:
           type: string
         status:
           type: string
-          description: "open, in_progress, completed, cancelled"
         initiatorId:
-          type: integer
+          type: string
         initiatorName:
           type: ["string", "null"]
         description:
@@ -928,7 +870,6 @@ components:
         updatedAt:
           type: string
 
-    # Dashboard
     DashboardSummary:
       type: object
       required: [totalDocuments, outboundCount, inboundCount, deliveredCount, failedCount, draftCount, pendingCount, activeTransactions, companiesCount]
@@ -969,7 +910,7 @@ components:
         sequenceOrder:
           type: integer
         documentId:
-          type: ["integer", "null"]
+          type: ["string", "null"]
         timestamp:
           type: ["string", "null"]
 
@@ -978,7 +919,7 @@ components:
       required: [id, type, documentType, direction, status, senderName, receiverName, createdAt]
       properties:
         id:
-          type: integer
+          type: string
         type:
           type: string
         documentType:
@@ -1020,13 +961,13 @@ components:
       required: [id, action, entityType, entityId, createdAt]
       properties:
         id:
-          type: integer
+          type: string
         action:
           type: string
         entityType:
           type: string
         entityId:
-          type: integer
+          type: string
         details:
           type: ["string", "null"]
         createdAt:

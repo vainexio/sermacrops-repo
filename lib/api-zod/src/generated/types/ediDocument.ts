@@ -7,17 +7,14 @@
  */
 
 export interface EdiDocument {
-  id: number;
-  /** 850, 855, 856, 810, 204, 990 */
+  id: string;
   documentType: string;
-  /** outbound, inbound */
   direction: string;
-  /** draft, ready, sent, delivered, failed, retry_pending */
   status: string;
-  senderId: number;
+  senderId: string;
   /** @nullable */
   senderName?: string | null;
-  receiverId: number;
+  receiverId: string;
   /** @nullable */
   receiverName?: string | null;
   controlNumber: string;
@@ -31,26 +28,17 @@ export interface EdiDocument {
   deliveryDate?: string | null;
   /** @nullable */
   totalAmount?: number | null;
-  /**
-     * JSON array of line items
-     * @nullable
-     */
+  /** @nullable */
   lineItems?: string | null;
   /** @nullable */
   paymentTerms?: string | null;
-  /**
-     * JSON object
-     * @nullable
-     */
+  /** @nullable */
   shippingDetails?: string | null;
-  /**
-     * Raw X12 EDI content
-     * @nullable
-     */
+  /** @nullable */
   x12Content?: string | null;
   /** @nullable */
   notes?: string | null;
-  retryCount?: number;
+  retryCount: number;
   /** @nullable */
   lastResponseCode?: number | null;
   /** @nullable */
@@ -60,7 +48,7 @@ export interface EdiDocument {
   /** @nullable */
   deliveredAt?: string | null;
   /** @nullable */
-  transactionId?: number | null;
+  transactionId?: string | null;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 }

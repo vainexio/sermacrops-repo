@@ -14,7 +14,7 @@ export interface FlowStep {
   status: string;
   sequenceOrder: number;
   /** @nullable */
-  documentId?: number | null;
+  documentId?: string | null;
   /** @nullable */
   timestamp?: string | null;
 }

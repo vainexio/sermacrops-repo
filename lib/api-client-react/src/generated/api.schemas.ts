@@ -10,10 +10,9 @@ export interface HealthStatus {
 }
 
 export interface Company {
-  id: number;
+  id: string;
   name: string;
   ediId: string;
-  /** Role: manufacturer, buyer, supplier, logistics */
   type: string;
   /** @nullable */
   address?: string | null;
@@ -21,7 +20,7 @@ export interface Company {
   contactEmail?: string | null;
   /** @nullable */
   contactPhone?: string | null;
-  isActive?: boolean;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -46,29 +45,25 @@ export interface CompanyUpdate {
 }
 
 export interface PartnerEndpoint {
-  id: number;
-  companyId: number;
+  id: string;
+  companyId: string;
   /** @nullable */
   companyName?: string | null;
   name: string;
   url: string;
-  /** none, api_key, bearer_token, basic */
   authType: string;
   /** @nullable */
   apiKey?: string | null;
   /** @nullable */
   bearerToken?: string | null;
-  /**
-     * JSON string of custom headers
-     * @nullable
-     */
+  /** @nullable */
   customHeaders?: string | null;
-  isActive?: boolean;
+  isActive: boolean;
   createdAt: string;
 }
 
 export interface PartnerEndpointInput {
-  companyId: number;
+  companyId: string;
   name: string;
   url: string;
   authType: string;
@@ -89,17 +84,14 @@ export interface PartnerEndpointUpdate {
 }
 
 export interface EdiDocument {
-  id: number;
-  /** 850, 855, 856, 810, 204, 990 */
+  id: string;
   documentType: string;
-  /** outbound, inbound */
   direction: string;
-  /** draft, ready, sent, delivered, failed, retry_pending */
   status: string;
-  senderId: number;
+  senderId: string;
   /** @nullable */
   senderName?: string | null;
-  receiverId: number;
+  receiverId: string;
   /** @nullable */
   receiverName?: string | null;
   controlNumber: string;
@@ -113,26 +105,17 @@ export interface EdiDocument {
   deliveryDate?: string | null;
   /** @nullable */
   totalAmount?: number | null;
-  /**
-     * JSON array of line items
-     * @nullable
-     */
+  /** @nullable */
   lineItems?: string | null;
   /** @nullable */
   paymentTerms?: string | null;
-  /**
-     * JSON object
-     * @nullable
-     */
+  /** @nullable */
   shippingDetails?: string | null;
-  /**
-     * Raw X12 EDI content
-     * @nullable
-     */
+  /** @nullable */
   x12Content?: string | null;
   /** @nullable */
   notes?: string | null;
-  retryCount?: number;
+  retryCount: number;
   /** @nullable */
   lastResponseCode?: number | null;
   /** @nullable */
@@ -142,16 +125,16 @@ export interface EdiDocument {
   /** @nullable */
   deliveredAt?: string | null;
   /** @nullable */
-  transactionId?: number | null;
+  transactionId?: string | null;
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 }
 
 export interface EdiDocumentInput {
   documentType: string;
   direction: string;
-  senderId: number;
-  receiverId: number;
+  senderId: string;
+  receiverId: string;
   referenceNumber?: string;
   poNumber?: string;
   shipDate?: string;
@@ -161,7 +144,7 @@ export interface EdiDocumentInput {
   paymentTerms?: string;
   shippingDetails?: string;
   notes?: string;
-  transactionId?: number;
+  transactionId?: string;
   status?: string;
 }
 
@@ -202,7 +185,7 @@ export interface InboundPayload {
 
 export interface InboundReceipt {
   success: boolean;
-  messageId: number;
+  messageId: string;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */
@@ -213,21 +196,20 @@ export interface InboundReceipt {
 }
 
 export interface InboundMessage {
-  id: number;
+  id: string;
   /** @nullable */
   documentType?: string | null;
   /** @nullable */
-  senderId?: number | null;
+  senderId?: string | null;
   /** @nullable */
   senderName?: string | null;
   /** @nullable */
-  receiverId?: number | null;
+  receiverId?: string | null;
   /** @nullable */
   receiverName?: string | null;
   rawPayload: string;
   /** @nullable */
   parsedData?: string | null;
-  /** received, processing, processed, error */
   status: string;
   /** @nullable */
   validationErrors?: string | null;
@@ -239,11 +221,10 @@ export interface InboundMessage {
 }
 
 export interface Transaction {
-  id: number;
+  id: string;
   referenceNumber: string;
-  /** open, in_progress, completed, cancelled */
   status: string;
-  initiatorId: number;
+  initiatorId: string;
   /** @nullable */
   initiatorName?: string | null;
   /** @nullable */
@@ -252,7 +233,7 @@ export interface Transaction {
   totalValue?: number | null;
   documents?: EdiDocument[];
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
 }
 
 export interface DashboardSummary {
@@ -275,13 +256,13 @@ export interface FlowStep {
   status: string;
   sequenceOrder: number;
   /** @nullable */
-  documentId?: number | null;
+  documentId?: string | null;
   /** @nullable */
   timestamp?: string | null;
 }
 
 export interface ActivityItem {
-  id: number;
+  id: string;
   type: string;
   documentType: string;
   direction: string;
@@ -305,10 +286,10 @@ export interface DocumentStat {
 }
 
 export interface AuditLog {
-  id: number;
+  id: string;
   action: string;
   entityType: string;
-  entityId: number;
+  entityId: string;
   /** @nullable */
   details?: string | null;
   createdAt: string;
@@ -318,7 +299,7 @@ export type ListEdiDocumentsParams = {
 status?: string;
 direction?: string;
 documentType?: string;
-companyId?: number;
+companyId?: string;
 };
 
 export type ListInboundMessagesParams = {
@@ -328,11 +309,11 @@ documentType?: string;
 
 export type ListTransactionsParams = {
 status?: string;
-companyId?: number;
+companyId?: string;
 };
 
 export type ListAuditLogsParams = {
 entityType?: string;
-entityId?: number;
+entityId?: string;
 };
 

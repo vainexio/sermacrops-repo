@@ -16,26 +16,20 @@ export const HealthCheckResponse = zod.object({
 })
 
 
-/**
- * @summary List all companies
- */
 export const ListCompaniesResponseItem = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "ediId": zod.string(),
-  "type": zod.string().describe('Role: manufacturer, buyer, supplier, logistics'),
+  "type": zod.string(),
   "address": zod.string().nullish(),
   "contactEmail": zod.string().nullish(),
   "contactPhone": zod.string().nullish(),
-  "isActive": zod.boolean().optional(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
 export const ListCompaniesResponse = zod.array(ListCompaniesResponseItem)
 
 
-/**
- * @summary Create a company
- */
 export const CreateCompanyBody = zod.object({
   "name": zod.string(),
   "ediId": zod.string(),
@@ -47,31 +41,25 @@ export const CreateCompanyBody = zod.object({
 })
 
 
-/**
- * @summary Get a company
- */
 export const GetCompanyParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const GetCompanyResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "ediId": zod.string(),
-  "type": zod.string().describe('Role: manufacturer, buyer, supplier, logistics'),
+  "type": zod.string(),
   "address": zod.string().nullish(),
   "contactEmail": zod.string().nullish(),
   "contactPhone": zod.string().nullish(),
-  "isActive": zod.boolean().optional(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
 
 
-/**
- * @summary Update a company
- */
 export const UpdateCompanyParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const UpdateCompanyBody = zod.object({
@@ -85,50 +73,41 @@ export const UpdateCompanyBody = zod.object({
 })
 
 export const UpdateCompanyResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "name": zod.string(),
   "ediId": zod.string(),
-  "type": zod.string().describe('Role: manufacturer, buyer, supplier, logistics'),
+  "type": zod.string(),
   "address": zod.string().nullish(),
   "contactEmail": zod.string().nullish(),
   "contactPhone": zod.string().nullish(),
-  "isActive": zod.boolean().optional(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
 
 
-/**
- * @summary Delete a company
- */
 export const DeleteCompanyParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 
-/**
- * @summary List all partner endpoints
- */
 export const ListPartnerEndpointsResponseItem = zod.object({
-  "id": zod.number(),
-  "companyId": zod.number(),
+  "id": zod.string(),
+  "companyId": zod.string(),
   "companyName": zod.string().nullish(),
   "name": zod.string(),
   "url": zod.string(),
-  "authType": zod.string().describe('none, api_key, bearer_token, basic'),
+  "authType": zod.string(),
   "apiKey": zod.string().nullish(),
   "bearerToken": zod.string().nullish(),
-  "customHeaders": zod.string().nullish().describe('JSON string of custom headers'),
-  "isActive": zod.boolean().optional(),
+  "customHeaders": zod.string().nullish(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
 export const ListPartnerEndpointsResponse = zod.array(ListPartnerEndpointsResponseItem)
 
 
-/**
- * @summary Create a partner endpoint
- */
 export const CreatePartnerEndpointBody = zod.object({
-  "companyId": zod.number(),
+  "companyId": zod.string(),
   "name": zod.string(),
   "url": zod.string(),
   "authType": zod.string(),
@@ -139,33 +118,27 @@ export const CreatePartnerEndpointBody = zod.object({
 })
 
 
-/**
- * @summary Get a partner endpoint
- */
 export const GetPartnerEndpointParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const GetPartnerEndpointResponse = zod.object({
-  "id": zod.number(),
-  "companyId": zod.number(),
+  "id": zod.string(),
+  "companyId": zod.string(),
   "companyName": zod.string().nullish(),
   "name": zod.string(),
   "url": zod.string(),
-  "authType": zod.string().describe('none, api_key, bearer_token, basic'),
+  "authType": zod.string(),
   "apiKey": zod.string().nullish(),
   "bearerToken": zod.string().nullish(),
-  "customHeaders": zod.string().nullish().describe('JSON string of custom headers'),
-  "isActive": zod.boolean().optional(),
+  "customHeaders": zod.string().nullish(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
 
 
-/**
- * @summary Update a partner endpoint
- */
 export const UpdatePartnerEndpointParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const UpdatePartnerEndpointBody = zod.object({
@@ -179,46 +152,40 @@ export const UpdatePartnerEndpointBody = zod.object({
 })
 
 export const UpdatePartnerEndpointResponse = zod.object({
-  "id": zod.number(),
-  "companyId": zod.number(),
+  "id": zod.string(),
+  "companyId": zod.string(),
   "companyName": zod.string().nullish(),
   "name": zod.string(),
   "url": zod.string(),
-  "authType": zod.string().describe('none, api_key, bearer_token, basic'),
+  "authType": zod.string(),
   "apiKey": zod.string().nullish(),
   "bearerToken": zod.string().nullish(),
-  "customHeaders": zod.string().nullish().describe('JSON string of custom headers'),
-  "isActive": zod.boolean().optional(),
+  "customHeaders": zod.string().nullish(),
+  "isActive": zod.boolean(),
   "createdAt": zod.string()
 })
 
 
-/**
- * @summary Delete a partner endpoint
- */
 export const DeletePartnerEndpointParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 
-/**
- * @summary List EDI documents
- */
 export const ListEdiDocumentsQueryParams = zod.object({
   "status": zod.coerce.string().optional(),
   "direction": zod.coerce.string().optional(),
   "documentType": zod.coerce.string().optional(),
-  "companyId": zod.coerce.number().optional()
+  "companyId": zod.coerce.string().optional()
 })
 
 export const ListEdiDocumentsResponseItem = zod.object({
-  "id": zod.number(),
-  "documentType": zod.string().describe('850, 855, 856, 810, 204, 990'),
-  "direction": zod.string().describe('outbound, inbound'),
-  "status": zod.string().describe('draft, ready, sent, delivered, failed, retry_pending'),
-  "senderId": zod.number(),
+  "id": zod.string(),
+  "documentType": zod.string(),
+  "direction": zod.string(),
+  "status": zod.string(),
+  "senderId": zod.string(),
   "senderName": zod.string().nullish(),
-  "receiverId": zod.number(),
+  "receiverId": zod.string(),
   "receiverName": zod.string().nullish(),
   "controlNumber": zod.string(),
   "referenceNumber": zod.string().nullish(),
@@ -226,31 +193,28 @@ export const ListEdiDocumentsResponseItem = zod.object({
   "shipDate": zod.string().nullish(),
   "deliveryDate": zod.string().nullish(),
   "totalAmount": zod.number().nullish(),
-  "lineItems": zod.string().nullish().describe('JSON array of line items'),
+  "lineItems": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
-  "shippingDetails": zod.string().nullish().describe('JSON object'),
-  "x12Content": zod.string().nullish().describe('Raw X12 EDI content'),
+  "shippingDetails": zod.string().nullish(),
+  "x12Content": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "retryCount": zod.number().optional(),
+  "retryCount": zod.number(),
   "lastResponseCode": zod.number().nullish(),
   "lastResponseBody": zod.string().nullish(),
   "sentAt": zod.string().nullish(),
   "deliveredAt": zod.string().nullish(),
-  "transactionId": zod.number().nullish(),
+  "transactionId": zod.string().nullish(),
   "createdAt": zod.string(),
-  "updatedAt": zod.string().optional()
+  "updatedAt": zod.string()
 })
 export const ListEdiDocumentsResponse = zod.array(ListEdiDocumentsResponseItem)
 
 
-/**
- * @summary Create an EDI document
- */
 export const CreateEdiDocumentBody = zod.object({
   "documentType": zod.string(),
   "direction": zod.string(),
-  "senderId": zod.number(),
-  "receiverId": zod.number(),
+  "senderId": zod.string(),
+  "receiverId": zod.string(),
   "referenceNumber": zod.string().optional(),
   "poNumber": zod.string().optional(),
   "shipDate": zod.string().optional(),
@@ -260,26 +224,23 @@ export const CreateEdiDocumentBody = zod.object({
   "paymentTerms": zod.string().optional(),
   "shippingDetails": zod.string().optional(),
   "notes": zod.string().optional(),
-  "transactionId": zod.number().optional(),
+  "transactionId": zod.string().optional(),
   "status": zod.string().optional()
 })
 
 
-/**
- * @summary Get an EDI document
- */
 export const GetEdiDocumentParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const GetEdiDocumentResponse = zod.object({
-  "id": zod.number(),
-  "documentType": zod.string().describe('850, 855, 856, 810, 204, 990'),
-  "direction": zod.string().describe('outbound, inbound'),
-  "status": zod.string().describe('draft, ready, sent, delivered, failed, retry_pending'),
-  "senderId": zod.number(),
+  "id": zod.string(),
+  "documentType": zod.string(),
+  "direction": zod.string(),
+  "status": zod.string(),
+  "senderId": zod.string(),
   "senderName": zod.string().nullish(),
-  "receiverId": zod.number(),
+  "receiverId": zod.string(),
   "receiverName": zod.string().nullish(),
   "controlNumber": zod.string(),
   "referenceNumber": zod.string().nullish(),
@@ -287,27 +248,24 @@ export const GetEdiDocumentResponse = zod.object({
   "shipDate": zod.string().nullish(),
   "deliveryDate": zod.string().nullish(),
   "totalAmount": zod.number().nullish(),
-  "lineItems": zod.string().nullish().describe('JSON array of line items'),
+  "lineItems": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
-  "shippingDetails": zod.string().nullish().describe('JSON object'),
-  "x12Content": zod.string().nullish().describe('Raw X12 EDI content'),
+  "shippingDetails": zod.string().nullish(),
+  "x12Content": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "retryCount": zod.number().optional(),
+  "retryCount": zod.number(),
   "lastResponseCode": zod.number().nullish(),
   "lastResponseBody": zod.string().nullish(),
   "sentAt": zod.string().nullish(),
   "deliveredAt": zod.string().nullish(),
-  "transactionId": zod.number().nullish(),
+  "transactionId": zod.string().nullish(),
   "createdAt": zod.string(),
-  "updatedAt": zod.string().optional()
+  "updatedAt": zod.string()
 })
 
 
-/**
- * @summary Update an EDI document
- */
 export const UpdateEdiDocumentParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const UpdateEdiDocumentBody = zod.object({
@@ -326,13 +284,13 @@ export const UpdateEdiDocumentBody = zod.object({
 })
 
 export const UpdateEdiDocumentResponse = zod.object({
-  "id": zod.number(),
-  "documentType": zod.string().describe('850, 855, 856, 810, 204, 990'),
-  "direction": zod.string().describe('outbound, inbound'),
-  "status": zod.string().describe('draft, ready, sent, delivered, failed, retry_pending'),
-  "senderId": zod.number(),
+  "id": zod.string(),
+  "documentType": zod.string(),
+  "direction": zod.string(),
+  "status": zod.string(),
+  "senderId": zod.string(),
   "senderName": zod.string().nullish(),
-  "receiverId": zod.number(),
+  "receiverId": zod.string(),
   "receiverName": zod.string().nullish(),
   "controlNumber": zod.string(),
   "referenceNumber": zod.string().nullish(),
@@ -340,35 +298,29 @@ export const UpdateEdiDocumentResponse = zod.object({
   "shipDate": zod.string().nullish(),
   "deliveryDate": zod.string().nullish(),
   "totalAmount": zod.number().nullish(),
-  "lineItems": zod.string().nullish().describe('JSON array of line items'),
+  "lineItems": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
-  "shippingDetails": zod.string().nullish().describe('JSON object'),
-  "x12Content": zod.string().nullish().describe('Raw X12 EDI content'),
+  "shippingDetails": zod.string().nullish(),
+  "x12Content": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "retryCount": zod.number().optional(),
+  "retryCount": zod.number(),
   "lastResponseCode": zod.number().nullish(),
   "lastResponseBody": zod.string().nullish(),
   "sentAt": zod.string().nullish(),
   "deliveredAt": zod.string().nullish(),
-  "transactionId": zod.number().nullish(),
+  "transactionId": zod.string().nullish(),
   "createdAt": zod.string(),
-  "updatedAt": zod.string().optional()
+  "updatedAt": zod.string()
 })
 
 
-/**
- * @summary Delete an EDI document
- */
 export const DeleteEdiDocumentParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 
-/**
- * @summary Send an EDI document to partner endpoint
- */
 export const SendEdiDocumentParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const SendEdiDocumentResponse = zod.object({
@@ -380,11 +332,8 @@ export const SendEdiDocumentResponse = zod.object({
 })
 
 
-/**
- * @summary Get X12 preview of an EDI document
- */
 export const PreviewEdiDocumentParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const PreviewEdiDocumentResponse = zod.object({
@@ -393,16 +342,13 @@ export const PreviewEdiDocumentResponse = zod.object({
 })
 
 
-/**
- * @summary Receive inbound EDI document
- */
 export const ReceiveInboundBody = zod.object({
   "x12Content": zod.string()
 })
 
 export const ReceiveInboundResponse = zod.object({
   "success": zod.boolean(),
-  "messageId": zod.number(),
+  "messageId": zod.string(),
   "documentType": zod.string().nullish(),
   "sender": zod.string().nullish(),
   "receiver": zod.string().nullish(),
@@ -410,24 +356,21 @@ export const ReceiveInboundResponse = zod.object({
 })
 
 
-/**
- * @summary List inbound messages
- */
 export const ListInboundMessagesQueryParams = zod.object({
   "status": zod.coerce.string().optional(),
   "documentType": zod.coerce.string().optional()
 })
 
 export const ListInboundMessagesResponseItem = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "documentType": zod.string().nullish(),
-  "senderId": zod.number().nullish(),
+  "senderId": zod.string().nullish(),
   "senderName": zod.string().nullish(),
-  "receiverId": zod.number().nullish(),
+  "receiverId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "rawPayload": zod.string(),
   "parsedData": zod.string().nullish(),
-  "status": zod.string().describe('received, processing, processed, error'),
+  "status": zod.string(),
   "validationErrors": zod.string().nullish(),
   "controlNumber": zod.string().nullish(),
   "createdAt": zod.string(),
@@ -436,23 +379,20 @@ export const ListInboundMessagesResponseItem = zod.object({
 export const ListInboundMessagesResponse = zod.array(ListInboundMessagesResponseItem)
 
 
-/**
- * @summary Get an inbound message
- */
 export const GetInboundMessageParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const GetInboundMessageResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "documentType": zod.string().nullish(),
-  "senderId": zod.number().nullish(),
+  "senderId": zod.string().nullish(),
   "senderName": zod.string().nullish(),
-  "receiverId": zod.number().nullish(),
+  "receiverId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "rawPayload": zod.string(),
   "parsedData": zod.string().nullish(),
-  "status": zod.string().describe('received, processing, processed, error'),
+  "status": zod.string(),
   "validationErrors": zod.string().nullish(),
   "controlNumber": zod.string().nullish(),
   "createdAt": zod.string(),
@@ -460,30 +400,27 @@ export const GetInboundMessageResponse = zod.object({
 })
 
 
-/**
- * @summary List all EDI transactions
- */
 export const ListTransactionsQueryParams = zod.object({
   "status": zod.coerce.string().optional(),
-  "companyId": zod.coerce.number().optional()
+  "companyId": zod.coerce.string().optional()
 })
 
 export const ListTransactionsResponseItem = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "referenceNumber": zod.string(),
-  "status": zod.string().describe('open, in_progress, completed, cancelled'),
-  "initiatorId": zod.number(),
+  "status": zod.string(),
+  "initiatorId": zod.string(),
   "initiatorName": zod.string().nullish(),
   "description": zod.string().nullish(),
   "totalValue": zod.number().nullish(),
   "documents": zod.array(zod.object({
-  "id": zod.number(),
-  "documentType": zod.string().describe('850, 855, 856, 810, 204, 990'),
-  "direction": zod.string().describe('outbound, inbound'),
-  "status": zod.string().describe('draft, ready, sent, delivered, failed, retry_pending'),
-  "senderId": zod.number(),
+  "id": zod.string(),
+  "documentType": zod.string(),
+  "direction": zod.string(),
+  "status": zod.string(),
+  "senderId": zod.string(),
   "senderName": zod.string().nullish(),
-  "receiverId": zod.number(),
+  "receiverId": zod.string(),
   "receiverName": zod.string().nullish(),
   "controlNumber": zod.string(),
   "referenceNumber": zod.string().nullish(),
@@ -491,49 +428,46 @@ export const ListTransactionsResponseItem = zod.object({
   "shipDate": zod.string().nullish(),
   "deliveryDate": zod.string().nullish(),
   "totalAmount": zod.number().nullish(),
-  "lineItems": zod.string().nullish().describe('JSON array of line items'),
+  "lineItems": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
-  "shippingDetails": zod.string().nullish().describe('JSON object'),
-  "x12Content": zod.string().nullish().describe('Raw X12 EDI content'),
+  "shippingDetails": zod.string().nullish(),
+  "x12Content": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "retryCount": zod.number().optional(),
+  "retryCount": zod.number(),
   "lastResponseCode": zod.number().nullish(),
   "lastResponseBody": zod.string().nullish(),
   "sentAt": zod.string().nullish(),
   "deliveredAt": zod.string().nullish(),
-  "transactionId": zod.number().nullish(),
+  "transactionId": zod.string().nullish(),
   "createdAt": zod.string(),
-  "updatedAt": zod.string().optional()
+  "updatedAt": zod.string()
 })).optional(),
   "createdAt": zod.string(),
-  "updatedAt": zod.string().optional()
+  "updatedAt": zod.string()
 })
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem)
 
 
-/**
- * @summary Get a transaction with its documents
- */
 export const GetTransactionParams = zod.object({
-  "id": zod.coerce.number()
+  "id": zod.coerce.string()
 })
 
 export const GetTransactionResponse = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "referenceNumber": zod.string(),
-  "status": zod.string().describe('open, in_progress, completed, cancelled'),
-  "initiatorId": zod.number(),
+  "status": zod.string(),
+  "initiatorId": zod.string(),
   "initiatorName": zod.string().nullish(),
   "description": zod.string().nullish(),
   "totalValue": zod.number().nullish(),
   "documents": zod.array(zod.object({
-  "id": zod.number(),
-  "documentType": zod.string().describe('850, 855, 856, 810, 204, 990'),
-  "direction": zod.string().describe('outbound, inbound'),
-  "status": zod.string().describe('draft, ready, sent, delivered, failed, retry_pending'),
-  "senderId": zod.number(),
+  "id": zod.string(),
+  "documentType": zod.string(),
+  "direction": zod.string(),
+  "status": zod.string(),
+  "senderId": zod.string(),
   "senderName": zod.string().nullish(),
-  "receiverId": zod.number(),
+  "receiverId": zod.string(),
   "receiverName": zod.string().nullish(),
   "controlNumber": zod.string(),
   "referenceNumber": zod.string().nullish(),
@@ -541,28 +475,25 @@ export const GetTransactionResponse = zod.object({
   "shipDate": zod.string().nullish(),
   "deliveryDate": zod.string().nullish(),
   "totalAmount": zod.number().nullish(),
-  "lineItems": zod.string().nullish().describe('JSON array of line items'),
+  "lineItems": zod.string().nullish(),
   "paymentTerms": zod.string().nullish(),
-  "shippingDetails": zod.string().nullish().describe('JSON object'),
-  "x12Content": zod.string().nullish().describe('Raw X12 EDI content'),
+  "shippingDetails": zod.string().nullish(),
+  "x12Content": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "retryCount": zod.number().optional(),
+  "retryCount": zod.number(),
   "lastResponseCode": zod.number().nullish(),
   "lastResponseBody": zod.string().nullish(),
   "sentAt": zod.string().nullish(),
   "deliveredAt": zod.string().nullish(),
-  "transactionId": zod.number().nullish(),
+  "transactionId": zod.string().nullish(),
   "createdAt": zod.string(),
-  "updatedAt": zod.string().optional()
+  "updatedAt": zod.string()
 })).optional(),
   "createdAt": zod.string(),
-  "updatedAt": zod.string().optional()
+  "updatedAt": zod.string()
 })
 
 
-/**
- * @summary Get overall dashboard summary stats
- */
 export const GetDashboardSummaryResponse = zod.object({
   "totalDocuments": zod.number(),
   "outboundCount": zod.number(),
@@ -576,9 +507,6 @@ export const GetDashboardSummaryResponse = zod.object({
 })
 
 
-/**
- * @summary Get order-to-cash process flow status
- */
 export const GetOrderTocashFlowResponseItem = zod.object({
   "step": zod.string(),
   "documentType": zod.string(),
@@ -586,17 +514,14 @@ export const GetOrderTocashFlowResponseItem = zod.object({
   "receiver": zod.string(),
   "status": zod.string(),
   "sequenceOrder": zod.number(),
-  "documentId": zod.number().nullish(),
+  "documentId": zod.string().nullish(),
   "timestamp": zod.string().nullish()
 })
 export const GetOrderTocashFlowResponse = zod.array(GetOrderTocashFlowResponseItem)
 
 
-/**
- * @summary Get recent transaction activity feed
- */
 export const GetRecentActivityResponseItem = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "type": zod.string(),
   "documentType": zod.string(),
   "direction": zod.string(),
@@ -610,9 +535,6 @@ export const GetRecentActivityResponseItem = zod.object({
 export const GetRecentActivityResponse = zod.array(GetRecentActivityResponseItem)
 
 
-/**
- * @summary Get document counts by type and status
- */
 export const GetDocumentStatsResponseItem = zod.object({
   "documentType": zod.string(),
   "total": zod.number(),
@@ -624,19 +546,16 @@ export const GetDocumentStatsResponseItem = zod.object({
 export const GetDocumentStatsResponse = zod.array(GetDocumentStatsResponseItem)
 
 
-/**
- * @summary List audit log entries
- */
 export const ListAuditLogsQueryParams = zod.object({
   "entityType": zod.coerce.string().optional(),
-  "entityId": zod.coerce.number().optional()
+  "entityId": zod.coerce.string().optional()
 })
 
 export const ListAuditLogsResponseItem = zod.object({
-  "id": zod.number(),
+  "id": zod.string(),
   "action": zod.string(),
   "entityType": zod.string(),
-  "entityId": zod.number(),
+  "entityId": zod.string(),
   "details": zod.string().nullish(),
   "createdAt": zod.string()
 })

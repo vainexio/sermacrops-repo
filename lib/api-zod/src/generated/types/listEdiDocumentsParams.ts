@@ -10,5 +10,5 @@ export type ListEdiDocumentsParams = {
 status?: string;
 direction?: string;
 documentType?: string;
-companyId?: number;
+companyId?: string;
 };

@@ -9,8 +9,8 @@
 export interface EdiDocumentInput {
   documentType: string;
   direction: string;
-  senderId: number;
-  receiverId: number;
+  senderId: string;
+  receiverId: string;
   referenceNumber?: string;
   poNumber?: string;
   shipDate?: string;
@@ -20,6 +20,6 @@ export interface EdiDocumentInput {
   paymentTerms?: string;
   shippingDetails?: string;
   notes?: string;
-  transactionId?: number;
+  transactionId?: string;
   status?: string;
 }

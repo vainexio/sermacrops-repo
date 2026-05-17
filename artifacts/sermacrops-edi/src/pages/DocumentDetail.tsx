@@ -1,0 +1,174 @@
+import { useParams, useLocation } from "wouter";
+import { useGetEdiDocument, getGetEdiDocumentQueryKey, useSendEdiDocument, useDeleteEdiDocument, getListEdiDocumentsQueryKey, usePreviewEdiDocument, getPreviewEdiDocumentQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
+import StatusBadge from "@/components/StatusBadge";
+import DocTypeBadge, { docTypeLabel } from "@/components/DocTypeBadge";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Send, Trash2, RefreshCw } from "lucide-react";
+
+export default function DocumentDetail() {
+  const { id } = useParams<{ id: string }>();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: doc, isLoading } = useGetEdiDocument(id, {
+    query: { enabled: !!id, queryKey: getGetEdiDocumentQueryKey(id) },
+  });
+  const { data: preview } = usePreviewEdiDocument(id, {
+    query: { enabled: !!id, queryKey: getPreviewEdiDocumentQueryKey(id) },
+  });
+
+  const sendDoc = useSendEdiDocument();
+  const deleteDoc = useDeleteEdiDocument();
+
+  async function handleSend() {
+    try {
+      const result = await sendDoc.mutateAsync({ id } as never);
+      queryClient.invalidateQueries({ queryKey: getGetEdiDocumentQueryKey(id) });
+      queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey() });
+      toast({ title: result.success ? "Sent successfully" : "Send failed", description: result.message, variant: result.success ? "default" : "destructive" });
+    } catch {
+      toast({ title: "Error", description: "Failed to send document", variant: "destructive" });
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Delete this document?")) return;
+    await deleteDoc.mutateAsync({ id } as never);
+    queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey() });
+    setLocation("/documents");
+    toast({ title: "Deleted" });
+  }
+
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
+  if (!doc) return <div className="p-8 text-center text-muted-foreground">Document not found</div>;
+
+  const lineItems = (() => { try { return doc.lineItems ? JSON.parse(doc.lineItems) : []; } catch { return []; } })();
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/documents" data-testid="btn-back" className="p-1.5 rounded hover:bg-muted transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <DocTypeBadge type={doc.documentType} />
+              <StatusBadge status={doc.status} />
+              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${doc.direction === "outbound" ? "bg-violet-100 text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
+                {doc.direction}
+              </span>
+            </div>
+            <h1 className="text-xl font-bold text-foreground">{docTypeLabel(doc.documentType)}</h1>
+            <p className="text-sm text-muted-foreground">Control # {doc.controlNumber}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {["draft", "ready", "failed", "retry_pending"].includes(doc.status) && (
+            <Button data-testid="btn-send-document" onClick={handleSend} disabled={sendDoc.isPending} size="sm">
+              {sendDoc.isPending ? <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />}
+              {sendDoc.isPending ? "Sending..." : "Send"}
+            </Button>
+          )}
+          <Button data-testid="btn-delete-document" variant="destructive" size="sm" onClick={handleDelete} disabled={deleteDoc.isPending}>
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Document fields */}
+        <div className="space-y-5">
+          {/* Summary */}
+          <div className="bg-card border border-card-border rounded-lg p-5">
+            <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-4">Summary</h2>
+            <dl className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Sender", value: doc.senderName },
+                { label: "Receiver", value: doc.receiverName },
+                { label: "Reference #", value: doc.referenceNumber },
+                { label: "PO Number", value: doc.poNumber },
+                { label: "Ship Date", value: doc.shipDate },
+                { label: "Delivery Date", value: doc.deliveryDate },
+                { label: "Payment Terms", value: doc.paymentTerms },
+                { label: "Total Amount", value: doc.totalAmount != null ? `$${doc.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : null },
+              ].map(({ label, value }) => value ? (
+                <div key={label}>
+                  <dt className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</dt>
+                  <dd className="text-sm font-medium text-foreground mt-0.5">{value}</dd>
+                </div>
+              ) : null)}
+            </dl>
+          </div>
+
+          {/* Delivery status */}
+          <div className="bg-card border border-card-border rounded-lg p-5">
+            <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-4">Delivery Status</h2>
+            <dl className="space-y-2">
+              {[
+                { label: "Status", value: <StatusBadge status={doc.status} /> },
+                { label: "Retry Count", value: String(doc.retryCount) },
+                { label: "Sent At", value: doc.sentAt ? new Date(doc.sentAt).toLocaleString() : "—" },
+                { label: "Delivered At", value: doc.deliveredAt ? new Date(doc.deliveredAt).toLocaleString() : "—" },
+                { label: "Response Code", value: doc.lastResponseCode ? `HTTP ${doc.lastResponseCode}` : "—" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-center justify-between py-1 border-b border-border last:border-0">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="text-xs font-medium text-foreground">{value}</dd>
+                </div>
+              ))}
+              {doc.lastResponseBody && (
+                <div className="mt-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Last Response</p>
+                  <pre className="text-xs font-mono bg-muted/60 rounded p-2 overflow-x-auto">{doc.lastResponseBody}</pre>
+                </div>
+              )}
+            </dl>
+          </div>
+
+          {/* Line Items */}
+          {lineItems.length > 0 && (
+            <div className="bg-card border border-card-border rounded-lg p-5">
+              <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-3">Line Items</h2>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left pb-2 text-xs text-muted-foreground font-medium">Description</th>
+                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Qty</th>
+                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">UOM</th>
+                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Price</th>
+                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.map((item: { description: string; quantity: number; uom?: string; unitPrice: number }, i: number) => (
+                    <tr key={i} data-testid={`line-item-row-${i}`} className="border-b border-border last:border-0">
+                      <td className="py-2 text-foreground">{item.description}</td>
+                      <td className="py-2 text-right text-foreground">{item.quantity}</td>
+                      <td className="py-2 text-right text-muted-foreground">{item.uom ?? "EA"}</td>
+                      <td className="py-2 text-right text-foreground">${item.unitPrice.toFixed(2)}</td>
+                      <td className="py-2 text-right font-semibold text-foreground">${(item.quantity * item.unitPrice).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* X12 Preview */}
+        <div className="bg-card border border-card-border rounded-lg p-5 h-fit">
+          <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-3">X12 EDI Content</h2>
+          <pre className="text-[11px] font-mono text-foreground bg-muted/60 rounded p-4 overflow-x-auto whitespace-pre-wrap max-h-[600px] border border-border">
+            {preview?.content ?? doc.x12Content ?? "No X12 content available"}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+}

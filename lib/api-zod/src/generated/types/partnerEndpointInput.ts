@@ -7,7 +7,7 @@
  */
 
 export interface PartnerEndpointInput {
-  companyId: number;
+  companyId: string;
   name: string;
   url: string;
   authType: string;

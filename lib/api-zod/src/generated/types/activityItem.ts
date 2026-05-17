@@ -7,7 +7,7 @@
  */
 
 export interface ActivityItem {
-  id: number;
+  id: string;
   type: string;
   documentType: string;
   direction: string;
