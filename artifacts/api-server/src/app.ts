@@ -20,7 +20,21 @@ app.use(
     },
   }),
 );
-app.use(cors());
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",").map((o) => o.trim())
+  : [];
+
+app.use(
+  cors({
+    origin: allowedOrigins.length > 0
+      ? (origin, cb) => {
+          if (!origin || allowedOrigins.includes(origin)) cb(null, true);
+          else cb(new Error(`CORS: origin not allowed — ${origin}`));
+        }
+      : true,
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.text({ type: ["text/plain", "application/EDI-X12", "application/edi-x12"], limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
