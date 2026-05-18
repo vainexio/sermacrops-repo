@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: sermacrops-edi
+    env: static
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/sermacrops-edi run build
+    staticPublishPath: artifacts/sermacrops-edi/dist/public
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: sermacrops-api
+    env: node
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: pnpm --filter @workspace/api-server run start
+    healthCheckPath: /health
