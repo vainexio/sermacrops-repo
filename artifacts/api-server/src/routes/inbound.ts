@@ -1,9 +1,43 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { InboundMessage } from "../models/InboundMessage";
 import { Company } from "../models/Company";
+import { PartnerEndpoint } from "../models/PartnerEndpoint";
 import { parseX12Type, parseX12ControlNumber, parseX12SenderReceiver } from "../lib/x12";
 
 const router: IRouter = Router();
+
+async function checkInboundAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const sermacrops = await Company.findOne({ name: { $regex: /sermacrops/i } }).lean();
+  if (!sermacrops) { next(); return; }
+
+  const endpoint = await PartnerEndpoint.findOne({ companyId: sermacrops._id, isActive: true }).lean();
+  if (!endpoint || endpoint.authType === "none") { next(); return; }
+
+  if (endpoint.authType === "api_key") {
+    const provided = req.headers["x-api-key"];
+    if (!provided || provided !== endpoint.apiKey) {
+      res.status(401).json({ error: "Unauthorized: invalid or missing API key" });
+      return;
+    }
+  } else if (endpoint.authType === "bearer_token") {
+    const authHeader = req.headers["authorization"] ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token || token !== endpoint.bearerToken) {
+      res.status(401).json({ error: "Unauthorized: invalid or missing bearer token" });
+      return;
+    }
+  } else if (endpoint.authType === "basic") {
+    const authHeader = req.headers["authorization"] ?? "";
+    if (!authHeader.startsWith("Basic ") || authHeader.slice(6) !== endpoint.apiKey) {
+      res.status(401).json({ error: "Unauthorized: invalid or missing basic auth" });
+      return;
+    }
+  }
+
+  next();
+}
+
+router.use("/edi/inbound", checkInboundAuth);
 
 async function fmtMsg(m: InstanceType<typeof InboundMessage>) {
   const o = m.toObject();
