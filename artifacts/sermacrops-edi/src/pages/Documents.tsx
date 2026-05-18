@@ -120,7 +120,13 @@ export default function Documents() {
             <button
               key={doc.id}
               data-testid={`doc-item-${doc.id}`}
-              onClick={() => setSelected(doc.id === selected ? null : doc.id)}
+              onClick={() => {
+                if (window.innerWidth < 1024) {
+                  setLocation(`/documents/${doc.id}`);
+                } else {
+                  setSelected(doc.id === selected ? null : doc.id);
+                }
+              }}
               className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selected === doc.id ? "bg-muted" : ""}`}
             >
               <div className="flex items-start justify-between gap-2 mb-1">
