@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListInboundMessages, getListInboundMessagesQueryKey, useReceiveInbound } from "@workspace/api-client-react";
+import { useListInboundMessages, getListInboundMessagesQueryKey, useReceiveInbound, useListPartnerEndpoints } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge from "@/components/DocTypeBadge";
@@ -7,24 +7,37 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Inbox, Upload, Copy, Check, ChevronDown, ChevronUp, Terminal } from "lucide-react";
+import { Inbox, Upload, Copy, Check, ChevronDown, ChevronUp, Terminal, Lock, Unlock } from "lucide-react";
 
 const BASE_URL = window.location.origin;
 const INBOUND_URL = `${BASE_URL}/api/edi/inbound`;
 
-const CURL_JSON = `curl -X POST "${INBOUND_URL}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"x12Content":"ISA*00*          *00*          *ZZ*COFFEESHOP   *ZZ*SERMACROPS   *260517*1200*^*00501*000000001*0*P*:~\\nGS*PO*COFFEESHOP*SERMACROPS*20260517*1200*1*X*005010~\\nST*850*0001~\\nBEG*00*SA*PO-CS-2025-0099**20260517~\\nSE*2*0001~\\nGE*1*1~\\nIEA*1*000000001~"}'`;
+const SAMPLE_BODY = `ISA*00*          *00*          *ZZ*COFFEESHOP   *ZZ*SERMACROPS   *260517*1200*^*00501*000000001*0*P*:~\nGS*PO*COFFEESHOP*SERMACROPS*20260517*1200*1*X*005010~\nST*850*0001~\nBEG*00*SA*PO-CS-2025-0099**20260517~\nSE*2*0001~\nGE*1*1~\nIEA*1*000000001~`;
 
-const CURL_RAW = `curl -X POST "${INBOUND_URL}" \\
-  -H "Content-Type: application/EDI-X12" \\
-  --data-raw "ISA*00*          *00*          *ZZ*COFFEESHOP   *ZZ*SERMACROPS   *260517*1200*^*00501*000000001*0*P*:~
+const SAMPLE_BODY_RAW = `ISA*00*          *00*          *ZZ*COFFEESHOP   *ZZ*SERMACROPS   *260517*1200*^*00501*000000001*0*P*:~
 GS*PO*COFFEESHOP*SERMACROPS*20260517*1200*1*X*005010~
 ST*850*0001~
 BEG*00*SA*PO-CS-2025-0099**20260517~
 SE*2*0001~
 GE*1*1~
-IEA*1*000000001~"`;
+IEA*1*000000001~`;
+
+function buildAuthLines(authType: string, apiKey?: string | null, bearerToken?: string | null): string[] {
+  if (authType === "api_key" && apiKey) return [`  -H "x-api-key: ${apiKey}" \\`];
+  if (authType === "bearer_token" && bearerToken) return [`  -H "Authorization: Bearer ${bearerToken}" \\`];
+  if (authType === "basic" && apiKey) return [`  -H "Authorization: Basic ${apiKey}" \\`];
+  return [];
+}
+
+function buildCurlJson(authLines: string[]): string {
+  const auth = authLines.length ? authLines.join("\n") + "\n" : "";
+  return `curl -X POST "${INBOUND_URL}" \\\n  -H "Content-Type: application/json" \\\n${auth}  -d '{"x12Content":"${SAMPLE_BODY}"}'`;
+}
+
+function buildCurlRaw(authLines: string[]): string {
+  const auth = authLines.length ? authLines.join("\n") + "\n" : "";
+  return `curl -X POST "${INBOUND_URL}" \\\n  -H "Content-Type: application/EDI-X12" \\\n${auth}  --data-raw "${SAMPLE_BODY_RAW}"`;
+}
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -50,6 +63,18 @@ export default function Inbound() {
   const [activeTab, setActiveTab] = useState<"json" | "raw">("json");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Find SERMACROPS's own inbound endpoint to know what auth partners must send
+  const { data: allEndpoints } = useListPartnerEndpoints();
+  const sermacropsEndpoint = allEndpoints?.find(ep =>
+    /sermacrops/i.test(ep.companyName ?? "") && ep.isActive
+  );
+  const authType = sermacropsEndpoint?.authType ?? "none";
+  const authLines = sermacropsEndpoint
+    ? buildAuthLines(authType, sermacropsEndpoint.apiKey, sermacropsEndpoint.bearerToken)
+    : [];
+  const curlJson = buildCurlJson(authLines);
+  const curlRaw = buildCurlRaw(authLines);
 
   const params = {
     ...(statusFilter !== "all" ? { status: statusFilter } : {}),
@@ -131,7 +156,19 @@ export default function Inbound() {
 
               {/* Code examples */}
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">Example — Partners Send</p>
+                <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Example — Partners Send</p>
+                  {authType === "none" ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-semibold uppercase tracking-wide">
+                      <Unlock className="w-2.5 h-2.5" /> No Auth Required
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-semibold uppercase tracking-wide">
+                      <Lock className="w-2.5 h-2.5" />
+                      {authType === "api_key" ? "API Key" : authType === "bearer_token" ? "Bearer Token" : authType === "basic" ? "Basic Auth" : authType}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-1 mb-2">
                   {(["json", "raw"] as const).map(tab => (
                     <button
@@ -145,10 +182,10 @@ export default function Inbound() {
                 </div>
                 <div className="relative bg-[#0f1117] rounded border border-border">
                   <div className="absolute top-2 right-2">
-                    <CopyButton text={activeTab === "json" ? CURL_JSON : CURL_RAW} />
+                    <CopyButton text={activeTab === "json" ? curlJson : curlRaw} />
                   </div>
                   <pre className="text-[10px] font-mono text-green-400 p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-48">
-                    {activeTab === "json" ? CURL_JSON : CURL_RAW}
+                    {activeTab === "json" ? curlJson : curlRaw}
                   </pre>
                 </div>
               </div>
