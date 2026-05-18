@@ -111,7 +111,7 @@ export default function Inbound() {
               </div>
 
               {/* Requirements */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-card border border-border rounded p-3">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">Accepted Content-Types</p>
                   <div className="space-y-1">
@@ -232,22 +232,59 @@ export default function Inbound() {
             <div className="p-8 text-center text-muted-foreground text-sm">No inbound messages yet</div>
           )}
           {messages?.map(msg => (
-            <button
-              key={msg.id}
-              data-testid={`inbound-item-${msg.id}`}
-              onClick={() => setSelected(msg.id === selected ? null : msg.id)}
-              className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selected === msg.id ? "bg-muted" : ""}`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                {msg.documentType ? <DocTypeBadge type={msg.documentType} /> : <span className="text-xs text-muted-foreground italic">Unknown Type</span>}
-                <StatusBadge status={msg.status} />
-              </div>
-              <p className="text-sm font-medium text-foreground truncate">
-                {msg.senderName ?? "Unknown"} → {msg.receiverName ?? "Unknown"}
-              </p>
-              {msg.controlNumber && <p className="text-[10px] text-muted-foreground">Control #{msg.controlNumber}</p>}
-              <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(msg.createdAt).toLocaleString()}</p>
-            </button>
+            <div key={msg.id}>
+              <button
+                data-testid={`inbound-item-${msg.id}`}
+                onClick={() => setSelected(msg.id === selected ? null : msg.id)}
+                className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-start gap-2 ${selected === msg.id ? "bg-muted" : ""}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    {msg.documentType ? <DocTypeBadge type={msg.documentType} /> : <span className="text-xs text-muted-foreground italic">Unknown Type</span>}
+                    <StatusBadge status={msg.status} />
+                  </div>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {msg.senderName ?? "Unknown"} → {msg.receiverName ?? "Unknown"}
+                  </p>
+                  {msg.controlNumber && <p className="text-[10px] text-muted-foreground">Control #{msg.controlNumber}</p>}
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(msg.createdAt).toLocaleString()}</p>
+                </div>
+                <ChevronDown className={`lg:hidden shrink-0 w-4 h-4 mt-1 text-muted-foreground transition-transform ${selected === msg.id ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Inline mobile detail */}
+              {selected === msg.id && selectedMsg && (
+                <div className="lg:hidden border-t border-border bg-background p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Sender", value: selectedMsg.senderName },
+                      { label: "Receiver", value: selectedMsg.receiverName },
+                      { label: "Control #", value: selectedMsg.controlNumber },
+                      { label: "Received", value: new Date(selectedMsg.createdAt).toLocaleString() },
+                    ].map(({ label, value }) => value ? (
+                      <div key={label} className="bg-muted/40 rounded p-2">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</p>
+                        <p className="text-xs font-medium text-foreground mt-0.5">{value}</p>
+                      </div>
+                    ) : null)}
+                  </div>
+                  {selectedMsg.validationErrors && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3">
+                      <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">Validation Errors</p>
+                      {(() => { try { return JSON.parse(selectedMsg.validationErrors); } catch { return [selectedMsg.validationErrors]; } })().map((e: string, i: number) => (
+                        <p key={i} className="text-xs text-red-600 dark:text-red-400">• {e}</p>
+                      ))}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
+                    <pre className="text-[11px] font-mono bg-muted/60 rounded p-3 overflow-x-auto whitespace-pre-wrap border border-border max-h-48">
+                      {selectedMsg.rawPayload}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>

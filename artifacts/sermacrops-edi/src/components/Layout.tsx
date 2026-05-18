@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, FileText, Inbox, ArrowLeftRight,
-  Globe, Building2, ScrollText, Menu, X, Zap
+  Globe, Building2, ScrollText, Menu, X, Zap, MoreHorizontal
 } from "lucide-react";
 import { useState } from "react";
 
@@ -15,6 +15,8 @@ const nav = [
   { href: "/companies", label: "Companies", icon: Building2 },
   { href: "/logs", label: "Audit Logs", icon: ScrollText },
 ];
+
+const bottomNav = nav.slice(0, 4);
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -51,7 +53,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 data-testid={`nav-${label.toLowerCase().replace(/\s+/g, "-")}`}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded text-sm font-medium transition-colors",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
@@ -78,11 +80,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Mobile topbar */}
-        <div className="flex items-center gap-3 h-14 px-4 border-b border-border lg:hidden">
+        <div className="flex items-center gap-3 h-14 px-4 border-b border-border lg:hidden shrink-0">
           <button
             data-testid="btn-mobile-menu"
             onClick={() => setMobileOpen(true)}
-            className="p-1.5 rounded hover:bg-muted"
+            className="p-2 rounded hover:bg-muted"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -90,9 +92,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </main>
+
+        {/* Mobile bottom nav */}
+        <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-sidebar border-t border-sidebar-border lg:hidden">
+          {bottomNav.map(({ href, label, icon: Icon }) => {
+            const active = href === "/" ? location === "/" : location.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex flex-col items-center gap-0.5 px-3 py-2 min-w-[56px]",
+                  active ? "text-blue-500" : "text-sidebar-foreground/50"
+                )}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[9px] font-medium">{label}</span>
+              </Link>
+            );
+          })}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="flex flex-col items-center gap-0.5 px-3 py-2 min-w-[56px] text-sidebar-foreground/50"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+            <span className="text-[9px] font-medium">More</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

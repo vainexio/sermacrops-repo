@@ -225,7 +225,7 @@ export default function DocumentNew() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/documents" data-testid="btn-back" className="p-1.5 rounded hover:bg-muted transition-colors">
           <ArrowLeft className="w-4 h-4" />
@@ -242,7 +242,7 @@ export default function DocumentNew() {
             {/* Document Type & Direction */}
             <div className="bg-card border border-card-border rounded-lg p-5 space-y-4">
               <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Document Type</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField control={form.control} name="documentType" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Transaction Set</FormLabel>
@@ -287,7 +287,7 @@ export default function DocumentNew() {
             {/* Partners */}
             <div className="bg-card border border-card-border rounded-lg p-5 space-y-4">
               <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Trading Partners</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField control={form.control} name="senderId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Sender</FormLabel>
@@ -344,7 +344,7 @@ export default function DocumentNew() {
                   Document Details
                   <span className="ml-2 text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono normal-case tracking-normal">EDI {docType}</span>
                 </h2>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {showFields.filter(f => f !== "lineItems").map(renderField)}
                 </div>
                 <FormField control={form.control} name="notes" render={({ field }) => (
@@ -373,17 +373,21 @@ export default function DocumentNew() {
                   </Button>
                 </div>
                 {fields.map((field, index) => (
-                  <div key={field.id} data-testid={`line-item-${index}`} className="grid grid-cols-12 gap-2 items-end border-t border-border pt-3">
-                    <div className="col-span-4">
-                      <FormField control={form.control} name={`lineItems.${index}.description`} render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Description</FormLabel>
-                          <FormControl><Input placeholder="Coffee Beans" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
+                  <div key={field.id} data-testid={`line-item-${index}`} className="border-t border-border pt-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-medium">Item {index + 1}</span>
+                      <Button type="button" variant="ghost" size="sm" data-testid={`btn-remove-item-${index}`} onClick={() => remove(index)}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
                     </div>
-                    <div className="col-span-2">
+                    <FormField control={form.control} name={`lineItems.${index}.description`} render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Description</FormLabel>
+                        <FormControl><Input placeholder="Coffee Beans" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <div className="grid grid-cols-3 gap-2">
                       <FormField control={form.control} name={`lineItems.${index}.quantity`} render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs">Qty</FormLabel>
@@ -391,16 +395,12 @@ export default function DocumentNew() {
                           <FormMessage />
                         </FormItem>
                       )} />
-                    </div>
-                    <div className="col-span-2">
                       <FormField control={form.control} name={`lineItems.${index}.uom`} render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs">UOM</FormLabel>
                           <FormControl><Input placeholder="EA" {...field} /></FormControl>
                         </FormItem>
                       )} />
-                    </div>
-                    <div className="col-span-3">
                       <FormField control={form.control} name={`lineItems.${index}.unitPrice`} render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs">Unit Price</FormLabel>
@@ -409,18 +409,13 @@ export default function DocumentNew() {
                         </FormItem>
                       )} />
                     </div>
-                    <div className="col-span-1">
-                      <Button type="button" variant="ghost" size="sm" data-testid={`btn-remove-item-${index}`} onClick={() => remove(index)}>
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </Button>
-                    </div>
                   </div>
                 ))}
               </div>
             )}
 
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" disabled={isPending} data-testid="btn-save-draft" onClick={form.handleSubmit(v => handleSubmit(v, "draft"))}>
                 Save Draft
               </Button>
@@ -435,7 +430,7 @@ export default function DocumentNew() {
         </Form>
 
         {/* X12 Preview Panel */}
-        <div className="bg-card border border-card-border rounded-lg p-5 h-fit lg:sticky lg:top-4">
+        <div className="bg-card border border-card-border rounded-lg p-5 h-fit lg:sticky lg:top-4 hidden lg:block">
           <div className="flex items-center gap-2 mb-3">
             <Eye className="w-4 h-4 text-muted-foreground" />
             <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">X12 EDI Preview</h2>

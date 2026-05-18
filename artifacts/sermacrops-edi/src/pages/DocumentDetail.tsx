@@ -73,26 +73,26 @@ export default function DocumentDetail() {
   const lineItems = (() => { try { return doc.lineItems ? JSON.parse(doc.lineItems) : []; } catch { return []; } })();
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/documents" data-testid="btn-back" className="p-1.5 rounded hover:bg-muted transition-colors">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/documents" data-testid="btn-back" className="p-1.5 rounded hover:bg-muted transition-colors shrink-0">
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <DocTypeBadge type={doc.documentType} />
               <StatusBadge status={doc.status} />
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${doc.direction === "outbound" ? "bg-violet-100 text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
                 {doc.direction}
               </span>
             </div>
-            <h1 className="text-xl font-bold text-foreground">{docTypeLabel(doc.documentType)}</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-foreground">{docTypeLabel(doc.documentType)}</h1>
             <p className="text-sm text-muted-foreground">Control # {doc.controlNumber}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap shrink-0">
           {["draft", "ready", "failed", "retry_pending"].includes(doc.status) && (
             <Button data-testid="btn-send-document" onClick={handleSend} disabled={sendDoc.isPending} size="sm">
               {sendDoc.isPending ? <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />}
@@ -205,28 +205,30 @@ export default function DocumentDetail() {
           {lineItems.length > 0 && (
             <div className="bg-card border border-card-border rounded-lg p-5">
               <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-3">Line Items</h2>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left pb-2 text-xs text-muted-foreground font-medium">Description</th>
-                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Qty</th>
-                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">UOM</th>
-                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Price</th>
-                    <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineItems.map((item: { description: string; quantity: number; uom?: string; unitPrice: number }, i: number) => (
-                    <tr key={i} data-testid={`line-item-row-${i}`} className="border-b border-border last:border-0">
-                      <td className="py-2 text-foreground">{item.description}</td>
-                      <td className="py-2 text-right text-foreground">{item.quantity}</td>
-                      <td className="py-2 text-right text-muted-foreground">{item.uom ?? "EA"}</td>
-                      <td className="py-2 text-right text-foreground">${item.unitPrice.toFixed(2)}</td>
-                      <td className="py-2 text-right font-semibold text-foreground">${(item.quantity * item.unitPrice).toFixed(2)}</td>
+              <div className="overflow-x-auto -mx-5 px-5">
+                <table className="w-full text-sm min-w-[420px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left pb-2 text-xs text-muted-foreground font-medium">Description</th>
+                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Qty</th>
+                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">UOM</th>
+                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Price</th>
+                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {lineItems.map((item: { description: string; quantity: number; uom?: string; unitPrice: number }, i: number) => (
+                      <tr key={i} data-testid={`line-item-row-${i}`} className="border-b border-border last:border-0">
+                        <td className="py-2 text-foreground">{item.description}</td>
+                        <td className="py-2 text-right text-foreground">{item.quantity}</td>
+                        <td className="py-2 text-right text-muted-foreground">{item.uom ?? "EA"}</td>
+                        <td className="py-2 text-right text-foreground">${item.unitPrice.toFixed(2)}</td>
+                        <td className="py-2 text-right font-semibold text-foreground">${(item.quantity * item.unitPrice).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

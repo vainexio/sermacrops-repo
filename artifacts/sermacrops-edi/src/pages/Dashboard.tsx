@@ -120,17 +120,17 @@ export default function Dashboard() {
             <div className="px-5 py-8 text-center text-muted-foreground text-sm">No recent activity</div>
           )}
           {activity?.slice(0, 10).map(item => (
-            <div key={item.id} data-testid={`activity-item-${item.id}`} className="flex items-center gap-4 px-5 py-3 hover:bg-muted/40 transition-colors">
+            <div key={item.id} data-testid={`activity-item-${item.id}`} className="flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-muted/40 transition-colors">
               <DocTypeBadge type={item.documentType} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{item.senderName} → {item.receiverName}</p>
-                <p className="text-xs text-muted-foreground">{item.referenceNumber ?? item.id.slice(-8)} · {item.direction}</p>
+                <p className="text-xs text-muted-foreground truncate">{item.referenceNumber ?? item.id.slice(-8)} · {item.direction}</p>
               </div>
               {item.totalAmount != null && (
-                <span className="text-sm font-semibold text-foreground">${item.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className="text-xs sm:text-sm font-semibold text-foreground shrink-0">${item.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               )}
               <StatusBadge status={item.status} />
-              <span className="text-xs text-muted-foreground shrink-0">
+              <span className="hidden sm:inline text-xs text-muted-foreground shrink-0">
                 {new Date(item.createdAt).toLocaleString()}
               </span>
             </div>
