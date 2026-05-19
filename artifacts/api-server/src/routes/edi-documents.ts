@@ -224,10 +224,11 @@ router.post("/edi-documents/:id/send", async (req, res): Promise<void> => {
     doc.lastResponseCode = resp.status;
     doc.lastResponseBody = body.slice(0, 2000);
     doc.sentAt = now;
-    if (resp.status === 200) { doc.status = "delivered"; doc.deliveredAt = now; } else { doc.status = "failed"; }
+    const isSuccess = resp.status >= 200 && resp.status < 300;
+    if (isSuccess) { doc.status = "delivered"; doc.deliveredAt = now; } else { doc.status = "failed"; }
     await doc.save();
-    await AuditLog.create({ action: resp.status === 200 ? "delivered" : "send_failed", entityType: "EdiDocument", entityId: raw, details: JSON.stringify({ status: resp.status }) });
-    res.json({ success: resp.status === 200, message: resp.status === 200 ? "Delivered successfully" : `HTTP ${resp.status}`, responseCode: resp.status, responseBody: body.slice(0, 500), sentAt: now.toISOString(), requestInfo });
+    await AuditLog.create({ action: isSuccess ? "delivered" : "send_failed", entityType: "EdiDocument", entityId: raw, details: JSON.stringify({ status: resp.status }) });
+    res.json({ success: isSuccess, message: isSuccess ? "Delivered successfully" : `HTTP ${resp.status}`, responseCode: resp.status, responseBody: body.slice(0, 500), sentAt: now.toISOString(), requestInfo });
   } catch (err) {
     doc.status = "retry_pending";
     doc.retryCount = (doc.retryCount ?? 0) + 1;
