@@ -493,29 +493,26 @@ function AssignDocumentsDialog({
               No unassigned documents found. All documents are already linked to a transaction.
             </p>
           ) : (
-            <div className="space-y-1 max-h-72 overflow-y-auto overflow-x-hidden">
-              {unlinked.map(doc => (
-                <label
-                  key={doc.id}
-                  className="flex items-center gap-2 p-2.5 rounded hover:bg-muted/50 cursor-pointer w-full min-w-0 overflow-hidden"
-                >
-                  <Checkbox
-                    checked={selected.has(doc.id)}
-                    onCheckedChange={() => toggle(doc.id)}
-                    className="shrink-0"
-                  />
-                  <div className="shrink-0">
+            <div className="max-h-72 overflow-y-auto pr-1" style={{ scrollbarGutter: "stable" }}>
+              <div className="space-y-1">
+                {unlinked.map(doc => (
+                  <label
+                    key={doc.id}
+                    className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-2 p-2.5 rounded hover:bg-muted/50 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={selected.has(doc.id)}
+                      onCheckedChange={() => toggle(doc.id)}
+                    />
                     <DocTypeBadge type={doc.documentType} />
-                  </div>
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <p className="text-sm font-medium truncate">{doc.senderName} → {doc.receiverName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{doc.referenceNumber ?? doc.id.slice(-8)}</p>
-                  </div>
-                  <div className="shrink-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.senderName} → {doc.receiverName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{doc.referenceNumber ?? doc.id.slice(-8)}</p>
+                    </div>
                     <StatusBadge status={doc.status} />
-                  </div>
-                </label>
-              ))}
+                  </label>
+                ))}
+              </div>
             </div>
           )}
         </div>
