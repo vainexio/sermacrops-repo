@@ -48,4 +48,31 @@ router.get("/transactions/:id", async (req, res): Promise<void> => {
   res.json(await fmtTx(tx, true));
 });
 
+router.post("/transactions", async (req, res): Promise<void> => {
+  const { referenceNumber, initiatorId, description, totalValue, status } = req.body;
+  if (!referenceNumber || !initiatorId) {
+    res.status(400).json({ error: "referenceNumber and initiatorId are required" });
+    return;
+  }
+  const existing = await Transaction.findOne({ referenceNumber });
+  if (existing) {
+    res.status(409).json({ error: "A transaction with this reference number already exists" });
+    return;
+  }
+  const tx = await Transaction.create({ referenceNumber, initiatorId, description, totalValue, status: status ?? "open" });
+  res.status(201).json(await fmtTx(tx, false));
+});
+
+router.patch("/transactions/:id", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const tx = await Transaction.findById(raw);
+  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+  const { status, description, totalValue } = req.body;
+  if (status !== undefined) tx.status = status;
+  if (description !== undefined) tx.description = description;
+  if (totalValue !== undefined) tx.totalValue = totalValue;
+  await tx.save();
+  res.json(await fmtTx(tx, true));
+});
+
 export default router;

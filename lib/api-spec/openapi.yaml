@@ -409,6 +409,22 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
 
   /transactions/{id}:
     get:
@@ -420,6 +436,28 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+    patch:
+      operationId: updateTransaction
+      tags: [transactions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionUpdate"
       responses:
         "200":
           description: OK
@@ -842,6 +880,31 @@ components:
           type: string
         processedAt:
           type: ["string", "null"]
+
+    TransactionInput:
+      type: object
+      required: [referenceNumber, initiatorId]
+      properties:
+        referenceNumber:
+          type: string
+        initiatorId:
+          type: string
+        description:
+          type: string
+        totalValue:
+          type: number
+        status:
+          type: string
+
+    TransactionUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+        description:
+          type: string
+        totalValue:
+          type: ["number", "null"]
 
     Transaction:
       type: object

@@ -30,4 +30,6 @@ export * from './partnerEndpointInput';
 export * from './partnerEndpointUpdate';
 export * from './sendResult';
 export * from './transaction';
+export * from './transactionInput';
+export * from './transactionUpdate';
 export * from './x12Preview';

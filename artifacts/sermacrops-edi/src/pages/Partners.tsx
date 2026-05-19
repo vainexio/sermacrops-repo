@@ -209,7 +209,7 @@ export default function Partners() {
                 <FormField control={form.control} name="bearerToken" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Bearer Token</FormLabel>
-                    <FormControl><Input data-testid="input-ep-token" type="password" {...field} /></FormControl>
+                    <FormControl><Input data-testid="input-ep-token" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

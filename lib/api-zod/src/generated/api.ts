@@ -448,11 +448,72 @@ export const ListTransactionsResponseItem = zod.object({
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem)
 
 
+export const CreateTransactionBody = zod.object({
+  "referenceNumber": zod.string(),
+  "initiatorId": zod.string(),
+  "description": zod.string().optional(),
+  "totalValue": zod.number().optional(),
+  "status": zod.string().optional()
+})
+
+
 export const GetTransactionParams = zod.object({
   "id": zod.coerce.string()
 })
 
 export const GetTransactionResponse = zod.object({
+  "id": zod.string(),
+  "referenceNumber": zod.string(),
+  "status": zod.string(),
+  "initiatorId": zod.string(),
+  "initiatorName": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "totalValue": zod.number().nullish(),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "documentType": zod.string(),
+  "direction": zod.string(),
+  "status": zod.string(),
+  "senderId": zod.string(),
+  "senderName": zod.string().nullish(),
+  "receiverId": zod.string(),
+  "receiverName": zod.string().nullish(),
+  "controlNumber": zod.string(),
+  "referenceNumber": zod.string().nullish(),
+  "poNumber": zod.string().nullish(),
+  "shipDate": zod.string().nullish(),
+  "deliveryDate": zod.string().nullish(),
+  "totalAmount": zod.number().nullish(),
+  "lineItems": zod.string().nullish(),
+  "paymentTerms": zod.string().nullish(),
+  "shippingDetails": zod.string().nullish(),
+  "x12Content": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "retryCount": zod.number(),
+  "lastResponseCode": zod.number().nullish(),
+  "lastResponseBody": zod.string().nullish(),
+  "sentAt": zod.string().nullish(),
+  "deliveredAt": zod.string().nullish(),
+  "transactionId": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})).optional(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+export const UpdateTransactionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateTransactionBody = zod.object({
+  "status": zod.string().optional(),
+  "description": zod.string().optional(),
+  "totalValue": zod.number().nullish()
+})
+
+export const UpdateTransactionResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
   "status": zod.string(),
