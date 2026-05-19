@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { EdiDocument } from "../models/EdiDocument";
 import { Company } from "../models/Company";
 import { AuditLog } from "../models/AuditLog";
+import { Transaction } from "../models/Transaction";
 import { generateX12, type CompanyInfo } from "../lib/x12";
 
 const router: IRouter = Router();
@@ -119,6 +120,40 @@ router.post("/edi-documents", async (req, res): Promise<void> => {
     doc.x12Content = x12;
   }
   await AuditLog.create({ action: "created", entityType: "EdiDocument", entityId: doc._id.toString(), details: JSON.stringify({ documentType, direction, status: doc.status }) });
+
+  // Auto-link to transaction (or auto-create one for inbound 850)
+  if (!transactionId) {
+    const refKey = (poNumber || referenceNumber) as string | undefined;
+    if (refKey) {
+      try {
+        let tx = await Transaction.findOne({ referenceNumber: refKey });
+        if (!tx && documentType === "850" && direction === "inbound") {
+          const senderCo2 = senderCo ?? await Company.findById(senderId);
+          tx = await Transaction.create({
+            referenceNumber: refKey,
+            initiatorId: senderId,
+            description: `Order from ${senderCo2?.name ?? "Customer"}`,
+            status: "open",
+          });
+        }
+        if (tx) {
+          await EdiDocument.findByIdAndUpdate(doc._id, { transactionId: tx._id });
+          (doc as Record<string, unknown>).transactionId = tx._id;
+          // Auto-advance transaction status
+          if (documentType === "855" && direction === "outbound" && tx.status === "open") {
+            await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
+          }
+          if (documentType === "810" && direction === "outbound") {
+            await Transaction.findByIdAndUpdate(tx._id, { status: "completed" });
+          }
+        }
+      } catch (err) {
+        // non-fatal — transaction auto-link failed, doc is still created
+        console.error("Auto-transaction link failed:", err);
+      }
+    }
+  }
+
   res.status(201).json(await fmtDoc(doc));
 });
 
