@@ -65,7 +65,7 @@ args = "PORT=24277 BASE_PATH=/ pnpm --filter @workspace/sermacrops-edi run dev"
 waitForPort = 24277
 
 [agent]
-stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
 
 [postMerge]
