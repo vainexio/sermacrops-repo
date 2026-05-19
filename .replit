@@ -37,7 +37,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=8081 BASE_PATH=/__mockup pnpm --filter @workspace/mockup-sandbox run dev"
+args = "pnpm --filter @workspace/mockup-sandbox run dev"
 waitForPort = 8081
 
 [[workflows.workflow]]
@@ -49,7 +49,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
+args = "pnpm --filter @workspace/api-server run dev"
 waitForPort = 8080
 
 [[workflows.workflow]]
@@ -61,7 +61,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=24277 BASE_PATH=/ pnpm --filter @workspace/sermacrops-edi run dev"
+args = "pnpm --filter @workspace/sermacrops-edi run dev"
 waitForPort = 24277
 
 [agent]
