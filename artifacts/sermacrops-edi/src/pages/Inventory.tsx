@@ -197,7 +197,7 @@ function ProcurementStepper({
                     </span>
                   </div>
 
-                  {isNext && !isSkipped && (
+                  {isNext && !isSkipped && step.step !== 2 && (
                     <Button
                       size="sm"
                       className={`h-6 text-[10px] px-2 gap-1 shrink-0 ${
@@ -209,8 +209,13 @@ function ProcurementStepper({
                       disabled={isAdvancing}
                     >
                       {isAdvancing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
-                      {step.step === 1 ? "Send PO" : step.step === 2 ? "Mark Acknowledged" : "Confirm Receipt"}
+                      {step.step === 1 ? "Send PO" : "Confirm Receipt"}
                     </Button>
+                  )}
+                  {isNext && !isSkipped && step.step === 2 && (
+                    <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 italic shrink-0">
+                      <Clock className="w-2.5 h-2.5" /> Awaiting inbound 855
+                    </span>
                   )}
                 </div>
 
@@ -296,7 +301,7 @@ function InventoryItemDialog({
     },
   });
 
-  const supplierCompanies = companies.filter(c => !(/sermacrops/i.test(c.name)));
+  const supplierCompanies = companies.filter(c => c.type === "supplier");
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
@@ -497,7 +502,7 @@ function CreatePurchaseOrderDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const supplierCompanies = companies.filter(c => !(/sermacrops/i.test(c.name)));
+  const supplierCompanies = companies.filter(c => c.type === "supplier");
 
   type OrderLine = { inventoryItemId: string; name: string; quantity: number; unit: string; unitPrice: number };
   const [selectedItems, setSelectedItems] = useState<OrderLine[]>([]);
