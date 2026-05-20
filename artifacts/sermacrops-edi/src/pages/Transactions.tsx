@@ -11,6 +11,7 @@ import {
   type EdiDocument,
   type Company,
 } from "@workspace/api-client-react";
+import { apiBase } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge from "@/components/DocTypeBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -445,7 +446,7 @@ function AdvanceStepDialog({
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch(`/api/transactions/${transactionId}/advance-step`, {
+      const res = await fetch(`${apiBase}/api/transactions/${transactionId}/advance-step`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -892,7 +893,7 @@ function TransactionDetail({
   const { mutate: skipStep, isPending: isSkippingStep } = useMutation({
     mutationFn: async (stepNum: number) => {
       const updated = [...skippedSteps, stepNum];
-      const res = await fetch(`/api/transactions/${detail.id}`, {
+      const res = await fetch(`${apiBase}/api/transactions/${detail.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ skippedSteps: updated }),
