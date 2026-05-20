@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListInboundMessages, getListInboundMessagesQueryKey, useReceiveInbound, useListPartnerEndpoints } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge from "@/components/DocTypeBadge";
 import { EdiDocumentCard } from "@/components/EdiDocumentCard";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Inbox, Upload, Copy, Check, ChevronDown, ChevronUp, Terminal, Lock, Unlock } from "lucide-react";
+import { Inbox, Upload, Copy, Check, ChevronDown, ChevronUp, Terminal, Lock, Unlock, Trash2 } from "lucide-react";
 
 const BASE_URL = window.location.origin;
 const INBOUND_URL = `${BASE_URL}/api/edi/inbound`;
@@ -63,8 +63,23 @@ export default function Inbound() {
   const [showSubmit, setShowSubmit] = useState(false);
   const [showEndpointInfo, setShowEndpointInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<"json" | "raw">("json");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { mutate: deleteMsg, isPending: isDeleting } = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/inbound-messages/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete message");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListInboundMessagesQueryKey() });
+      setSelected(null);
+      setConfirmDelete(false);
+      toast({ title: "Message deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete message", variant: "destructive" }),
+  });
 
   // Find SERMACROPS's own inbound endpoint to know what auth partners must send
   const { data: allEndpoints } = useListPartnerEndpoints();
@@ -342,15 +357,37 @@ export default function Inbound() {
           return (
             <div className="p-6 space-y-5">
               {/* Message meta strip */}
-              <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
-                <span>Message ID: <span className="font-mono text-foreground">{selectedMsg.id}</span></span>
-                <span>·</span>
-                <span>Received: <span className="text-foreground">{new Date(selectedMsg.createdAt).toLocaleString()}</span></span>
-                {selectedMsg.processedAt && (
-                  <>
-                    <span>·</span>
-                    <span>Processed: <span className="text-foreground">{new Date(selectedMsg.processedAt).toLocaleString()}</span></span>
-                  </>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+                  <span>Message ID: <span className="font-mono text-foreground">{selectedMsg.id}</span></span>
+                  <span>·</span>
+                  <span>Received: <span className="text-foreground">{new Date(selectedMsg.createdAt).toLocaleString()}</span></span>
+                  {selectedMsg.processedAt && (
+                    <>
+                      <span>·</span>
+                      <span>Processed: <span className="text-foreground">{new Date(selectedMsg.processedAt).toLocaleString()}</span></span>
+                    </>
+                  )}
+                </div>
+                {confirmDelete ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">Delete this message?</span>
+                    <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={isDeleting} onClick={() => deleteMsg(selectedMsg.id)}>
+                      {isDeleting ? "Deleting…" : "Confirm"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5 shrink-0 text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/60"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </Button>
                 )}
               </div>
 

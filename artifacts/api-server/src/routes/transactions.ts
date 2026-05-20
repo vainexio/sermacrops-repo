@@ -75,4 +75,11 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
   res.json(await fmtTx(tx, true));
 });
 
+router.delete("/transactions/:id", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const tx = await Transaction.findByIdAndDelete(raw);
+  if (!tx) { res.status(404).json({ error: "Not found" }); return; }
+  res.json({ success: true });
+});
+
 export default router;

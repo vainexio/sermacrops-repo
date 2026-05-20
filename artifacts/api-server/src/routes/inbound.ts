@@ -124,4 +124,11 @@ router.get("/inbound-messages/:id", async (req, res): Promise<void> => {
   res.json(await fmtMsg(msg));
 });
 
+router.delete("/inbound-messages/:id", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const msg = await InboundMessage.findByIdAndDelete(raw);
+  if (!msg) { res.status(404).json({ error: "Not found" }); return; }
+  res.json({ success: true });
+});
+
 export default router;

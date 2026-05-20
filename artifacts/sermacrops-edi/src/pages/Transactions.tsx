@@ -18,12 +18,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "wouter";
 import {
   ArrowLeftRight, ChevronDown, ChevronUp, Plus, Paperclip,
   CheckCircle2, XCircle, Clock, Circle, ArrowRight,
-  ShoppingCart, FileCheck, Truck, CheckSquare, Package, Receipt,
+  ShoppingCart, FileCheck, Truck, CheckSquare, Package, Receipt, Trash2,
 } from "lucide-react";
 
 // ─── Order-to-Cash step definitions ──────────────────────────────────────────
@@ -287,11 +288,15 @@ function TransactionDetail({
   detail,
   onAssign,
   onStatusChange,
+  onDelete,
 }: {
   detail: Transaction;
   onAssign: () => void;
   onStatusChange: (status: string) => void;
+  onDelete: () => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   return (
     <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
@@ -324,6 +329,24 @@ function TransactionDetail({
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={onAssign}>
           <Paperclip className="w-3 h-3" /> Assign Documents
         </Button>
+        <div className="ml-auto flex items-center gap-2">
+          {confirmDelete ? (
+            <>
+              <span className="text-xs text-muted-foreground">Delete this transaction?</span>
+              <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={onDelete}>Confirm</Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/60"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* O2C Flow */}
@@ -534,6 +557,7 @@ function AssignDocumentsDialog({
 
 export default function Transactions() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -557,6 +581,19 @@ export default function Transactions() {
     },
   });
 
+  const { mutate: deleteTx } = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete transaction");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(params) });
+      setSelectedId(null);
+      toast({ title: "Transaction deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete transaction", variant: "destructive" }),
+  });
+
   function toggle(id: string) {
     setSelectedId(prev => prev === id ? null : id);
   }
@@ -564,6 +601,11 @@ export default function Transactions() {
   function handleStatusChange(status: string) {
     if (!selectedId) return;
     updateStatus({ id: selectedId, data: { status } });
+  }
+
+  function handleDeleteTx() {
+    if (!selectedId) return;
+    deleteTx(selectedId);
   }
 
   return (
@@ -640,6 +682,7 @@ export default function Transactions() {
                       detail={detail}
                       onAssign={() => setShowAssign(true)}
                       onStatusChange={handleStatusChange}
+                      onDelete={handleDeleteTx}
                     />
                   </div>
                 )}
@@ -656,6 +699,7 @@ export default function Transactions() {
             detail={detail}
             onAssign={() => setShowAssign(true)}
             onStatusChange={handleStatusChange}
+            onDelete={handleDeleteTx}
           />
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3">

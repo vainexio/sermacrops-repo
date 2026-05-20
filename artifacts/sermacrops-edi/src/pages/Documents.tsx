@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useListEdiDocuments, getListEdiDocumentsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge from "@/components/DocTypeBadge";
 import { EdiDocumentCard } from "@/components/EdiDocumentCard";
 import type { EdiDocumentData } from "@/components/EdiDocumentCard";
-import { Plus, Search, Filter } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Plus, Search, Filter, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Documents() {
   const [, setLocation] = useLocation();
@@ -16,6 +19,23 @@ export default function Documents() {
   const [dirFilter, setDirFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selected, setSelected] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { mutate: deleteDoc, isPending: isDeleting } = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/edi-documents/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete document");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey({}) });
+      setSelected(null);
+      setConfirmDelete(false);
+      toast({ title: "Document deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete document", variant: "destructive" }),
+  });
 
   const params = {
     ...(statusFilter !== "all" ? { status: statusFilter } : {}),
@@ -155,15 +175,41 @@ export default function Documents() {
       <div className="flex-1 hidden lg:flex flex-col overflow-y-auto">
         {selectedDoc ? (
           <div className="p-6 space-y-4">
-            {/* Open Full button */}
-            <div className="flex justify-end">
+            {/* Action bar */}
+            <div className="flex items-center justify-between gap-2">
               <button
                 data-testid="btn-open-full"
                 onClick={() => setLocation(`/documents/${selectedDoc.id}`)}
-                className="px-3 py-1.5 border border-border rounded text-xs font-medium hover:bg-muted transition-colors"
+                className="cursor-pointer px-3 py-1.5 border border-border rounded text-xs font-medium hover:bg-muted transition-colors"
               >
                 Open Full
               </button>
+              {confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Delete this document?</span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-7 text-xs"
+                    disabled={isDeleting}
+                    onClick={() => deleteDoc(selectedDoc.id)}
+                  >
+                    {isDeleting ? "Deleting…" : "Confirm"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/60"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </Button>
+              )}
             </div>
 
             {/* Formatted document card */}
