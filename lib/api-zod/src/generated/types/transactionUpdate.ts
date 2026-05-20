@@ -11,4 +11,5 @@ export interface TransactionUpdate {
   description?: string;
   /** @nullable */
   totalValue?: number | null;
+  skippedSteps?: number[];
 }

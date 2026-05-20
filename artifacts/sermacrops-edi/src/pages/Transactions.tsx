@@ -24,7 +24,7 @@ import {
   ArrowLeftRight, ChevronDown, ChevronUp, Plus,
   CheckCircle2, XCircle, Clock, Circle, ArrowRight, Send,
   ShoppingCart, FileCheck, Truck, CheckSquare, Package, Receipt, Trash2,
-  Hourglass,
+  Hourglass, MinusCircle, ChevronsRight,
 } from "lucide-react";
 
 // ─── Order-to-Cash step definitions ──────────────────────────────────────────
@@ -68,7 +68,7 @@ const O2C_STEPS = [
   },
   {
     step: 7, ediType: "856", direction: "outbound" as const,
-    label: "Ship Notice (ASN)", from: "SERMACROPS", to: "Customer",
+    label: "Ship Notice (ASN)", from: "Logistics", to: "Customer",
     description: "Forward shipment notification to customer",
     Icon: Package,
   },
@@ -96,7 +96,7 @@ type EdiDoc = EdiDocument & {
   specialInstructions?: string | null;
 };
 
-type StepStatus = "completed" | "failed" | "in_progress" | "draft" | "next" | "pending";
+type StepStatus = "completed" | "failed" | "in_progress" | "draft" | "next" | "pending" | "skipped";
 
 function getDocStatus(doc: EdiDoc): "completed" | "failed" | "in_progress" | "draft" {
   if (doc.status === "delivered") return "completed";
@@ -109,10 +109,12 @@ function matchDocForStep(step: O2CStep, docs: EdiDoc[]): EdiDoc | null {
   return docs.find(d => d.documentType === step.ediType && d.direction === step.direction) ?? null;
 }
 
-function getStepStatus(step: O2CStep, docs: EdiDoc[], index: number): StepStatus {
+function getStepStatus(step: O2CStep, docs: EdiDoc[], index: number, skippedSteps: Set<number>): StepStatus {
   const doc = matchDocForStep(step, docs);
   if (doc) return getDocStatus(doc);
+  if (skippedSteps.has(step.step)) return "skipped";
   const prevDone = O2C_STEPS.slice(0, index).every(s => {
+    if (skippedSteps.has(s.step)) return true;
     const d = matchDocForStep(s, docs);
     return d && getDocStatus(d) === "completed";
   });
@@ -143,6 +145,13 @@ function StepCircle({ status }: { status: StepStatus }) {
       </div>
     );
   }
+  if (status === "skipped") {
+    return (
+      <div className="w-8 h-8 rounded-full border-2 border-muted-foreground/25 bg-muted/30 flex items-center justify-center shrink-0">
+        <MinusCircle className="w-4 h-4 text-muted-foreground/40" />
+      </div>
+    );
+  }
   if (status === "draft") {
     return (
       <div className="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center shrink-0 shadow-sm">
@@ -169,11 +178,20 @@ function StepCircle({ status }: { status: StepStatus }) {
 function O2CFlowStepper({
   documents,
   onAdvance,
+  onSkip,
+  onForwardASN,
+  skippedSteps,
+  isForwardingASN = false,
 }: {
   documents: EdiDoc[];
   onAdvance: (step: O2CStep) => void;
+  onSkip: (stepNum: number) => void;
+  onForwardASN: () => void;
+  skippedSteps: Set<number>;
+  isForwardingASN?: boolean;
 }) {
   const completedCount = O2C_STEPS.filter(s => {
+    if (skippedSteps.has(s.step)) return true;
     const doc = matchDocForStep(s, documents);
     return doc && getDocStatus(doc) === "completed";
   }).length;
@@ -200,12 +218,21 @@ function O2CFlowStepper({
       <div className="relative">
         {O2C_STEPS.map((step, index) => {
           const doc = matchDocForStep(step, documents);
-          const status = getStepStatus(step, documents, index);
+          const status = getStepStatus(step, documents, index, skippedSteps);
           const isLast = index === O2C_STEPS.length - 1;
           const { Icon } = step;
+          const isSkipped = status === "skipped";
           const isNext = status === "next";
-          const isInboundNext = isNext && step.direction === "inbound";
-          const isOutboundNext = isNext && step.direction === "outbound";
+          const canSkip = (step.step === 5 || step.step === 6) && isNext;
+
+          // Step 7 two-phase ASN: inbound from Logistics, then forward to Customer
+          const asnInbound = step.step === 7
+            ? documents.find(d => d.documentType === "856" && d.direction === "inbound") ?? null
+            : null;
+          const step7InboundReceived = asnInbound != null && getDocStatus(asnInbound) === "completed";
+
+          const isInboundNext = isNext && (step.step !== 7 ? step.direction === "inbound" : !step7InboundReceived);
+          const isOutboundNext = isNext && (step.step !== 7 ? step.direction === "outbound" : step7InboundReceived);
 
           return (
             <div key={step.step} className="flex gap-3">
@@ -218,8 +245,9 @@ function O2CFlowStepper({
               </div>
 
               {/* Right: step content */}
-              <div className={`flex-1 pb-5 ${isLast ? "" : ""}`}>
+              <div className="flex-1 pb-5">
                 <div className={`rounded-lg border p-3 transition-colors ${
+                  isSkipped ? "border-border/30 bg-muted/10 opacity-60" :
                   status === "completed" ? "border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900" :
                   status === "failed" ? "border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900" :
                   status === "in_progress" ? "border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900" :
@@ -231,6 +259,7 @@ function O2CFlowStepper({
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <Icon className={`w-3.5 h-3.5 shrink-0 ${
+                        isSkipped ? "text-muted-foreground/40" :
                         status === "completed" ? "text-emerald-600" :
                         status === "failed" ? "text-red-500" :
                         status === "in_progress" ? "text-blue-500" :
@@ -239,6 +268,7 @@ function O2CFlowStepper({
                         "text-muted-foreground"
                       }`} />
                       <span className={`text-xs font-semibold ${
+                        isSkipped ? "text-muted-foreground/50 line-through" :
                         status === "pending" ? "text-muted-foreground" :
                         isOutboundNext ? "text-blue-700 dark:text-blue-300" :
                         isInboundNext ? "text-amber-700 dark:text-amber-300" :
@@ -251,26 +281,89 @@ function O2CFlowStepper({
                   </div>
 
                   {/* Direction */}
-                  <p className={`text-xs mb-2 ${status === "pending" ? "text-muted-foreground/60" : "text-muted-foreground"}`}>
-                    {step.from} <span className="mx-1">→</span> {step.to}
+                  <p className={`text-xs mb-2 ${isSkipped || status === "pending" ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
+                    {step.step === 7
+                      ? <span>Logistics <span className="mx-0.5">→</span> SERMACROPS <span className="mx-0.5">→</span> Customer</span>
+                      : <span>{step.from} <span className="mx-1">→</span> {step.to}</span>
+                    }
                   </p>
 
-                  {/* Doc info if present */}
-                  {doc ? (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-xs text-muted-foreground shrink-0">
-                        {doc.senderName} → {doc.receiverName}
-                      </p>
-                      <div className="flex items-center gap-2 ml-auto">
-                        <StatusBadge status={doc.status} />
-                        {doc.sentAt && (
-                          <span className="text-[10px] text-muted-foreground">
-                            {new Date(doc.sentAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
-                        <Link href={`/documents/${doc.id}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
-                          View →
-                        </Link>
+                  {/* Content */}
+                  {isSkipped ? (
+                    <p className="text-[11px] text-muted-foreground/50 italic">Skipped</p>
+                  ) : step.step === 7 && !doc ? (
+                    // Step 7 two-phase: no outbound 856 yet
+                    <div className="space-y-2">
+                      {asnInbound && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs text-muted-foreground shrink-0">
+                            {asnInbound.senderName} → SERMACROPS
+                          </p>
+                          <div className="flex items-center gap-2 ml-auto">
+                            <StatusBadge status={asnInbound.status} />
+                            {asnInbound.sentAt && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(asnInbound.sentAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            )}
+                            <Link href={`/documents/${asnInbound.id}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
+                              View →
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                      {isNext && step7InboundReceived ? (
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <p className="text-[11px] text-blue-600 dark:text-blue-400">ASN received — forward to customer</p>
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                            onClick={onForwardASN}
+                            disabled={isForwardingASN}
+                          >
+                            <Send className="w-3 h-3" /> {isForwardingASN ? "Forwarding…" : "Forward to Customer"}
+                          </Button>
+                        </div>
+                      ) : isNext ? (
+                        <div className="flex items-center gap-1.5">
+                          <Hourglass className="w-3 h-3 text-amber-500 animate-pulse shrink-0" />
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400">Awaiting ASN from Logistics</p>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground/60 italic">{step.description}</p>
+                      )}
+                    </div>
+                  ) : doc ? (
+                    <div className="space-y-2">
+                      {/* For step 7, also show the inbound ASN row above the outbound */}
+                      {step.step === 7 && asnInbound && (
+                        <div className="flex items-center gap-2 flex-wrap pb-1.5 border-b border-border/40">
+                          <p className="text-xs text-muted-foreground shrink-0">
+                            {asnInbound.senderName} → SERMACROPS
+                          </p>
+                          <div className="flex items-center gap-2 ml-auto">
+                            <StatusBadge status={asnInbound.status} />
+                            <Link href={`/documents/${asnInbound.id}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
+                              View →
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs text-muted-foreground shrink-0">
+                          {doc.senderName} → {doc.receiverName}
+                        </p>
+                        <div className="flex items-center gap-2 ml-auto">
+                          <StatusBadge status={doc.status} />
+                          {doc.sentAt && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(doc.sentAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                          <Link href={`/documents/${doc.id}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
+                            View →
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   ) : isOutboundNext ? (
@@ -292,6 +385,18 @@ function O2CFlowStepper({
                   ) : (
                     <p className="text-[11px] text-muted-foreground/60 italic">{step.description}</p>
                   )}
+
+                  {/* Skip option for steps 5 & 6 */}
+                  {canSkip && (
+                    <div className="mt-2 pt-2 border-t border-border/40">
+                      <button
+                        onClick={() => onSkip(step.step)}
+                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ChevronsRight className="w-3 h-3" /> Skip this step
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -304,6 +409,9 @@ function O2CFlowStepper({
         const matchedIds = new Set(
           O2C_STEPS.map(s => matchDocForStep(s, documents)?.id).filter(Boolean)
         );
+        // Also mark the inbound 856 (step 7 source ASN from Logistics) as matched
+        const step7Inbound = documents.find(d => d.documentType === "856" && d.direction === "inbound");
+        if (step7Inbound) matchedIds.add(step7Inbound.id);
         const extras = documents.filter(d => !matchedIds.has(d.id));
         if (extras.length === 0) return null;
         return (
@@ -357,11 +465,6 @@ function AdvanceStepDialog({
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [supplierCompanyId, setSupplierCompanyId] = useState("");
   const [supplierPoNumber, setSupplierPoNumber] = useState("");
-  const [shipDate, setShipDate] = useState((step1Doc as EdiDoc | null)?.shipDate ?? "");
-  const [carrierName, setCarrierName] = useState("");
-  const [trackingNumber, setTrackingNumber] = useState("");
-  const [packageCount, setPackageCount] = useState("");
-  const [weight, setWeight] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-8)}`);
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
   const [paymentTerms, setPaymentTerms] = useState((step1Doc as EdiDoc | null)?.paymentTerms ?? "");
@@ -410,13 +513,6 @@ function AdvanceStepDialog({
     if (step.step === 5) {
       body.supplierCompanyId = supplierCompanyId;
       if (supplierPoNumber) body.supplierPoNumber = supplierPoNumber;
-    }
-    if (step.step === 7) {
-      if (shipDate) body.shipDate = shipDate;
-      if (carrierName) body.carrierName = carrierName;
-      if (trackingNumber) body.trackingNumber = trackingNumber;
-      if (packageCount) body.packageCount = Number(packageCount);
-      if (weight) body.weight = Number(weight);
     }
     if (step.step === 8) {
       body.invoiceNumber = invoiceNumber;
@@ -572,56 +668,6 @@ function AdvanceStepDialog({
             </>
           )}
 
-          {/* Step 7: Ship Notice */}
-          {step.step === 7 && (
-            <>
-              <div className="space-y-1.5">
-                <Label>Ship Date</Label>
-                <Input
-                  type="date"
-                  value={shipDate}
-                  onChange={e => setShipDate(e.target.value)}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Carrier</Label>
-                  <Input
-                    placeholder="Carrier name"
-                    value={carrierName}
-                    onChange={e => setCarrierName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Tracking #</Label>
-                  <Input
-                    placeholder="Tracking number"
-                    value={trackingNumber}
-                    onChange={e => setTrackingNumber(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Package Count</Label>
-                  <Input
-                    type="number" min="1" placeholder="0"
-                    value={packageCount}
-                    onChange={e => setPackageCount(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Weight (KG)</Label>
-                  <Input
-                    type="number" min="0" step="0.01" placeholder="0.00"
-                    value={weight}
-                    onChange={e => setWeight(e.target.value)}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
           {/* Step 8: Invoice */}
           {step.step === 8 && (
             <>
@@ -680,17 +726,60 @@ function TransactionDetail({
   onDelete: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeStep, setActiveStep] = useState<O2CStep | null>(null);
 
   const { data: companies = [] } = useListCompanies();
   const documents = (detail.documents ?? []) as EdiDoc[];
   const step1Doc = documents.find(d => d.documentType === "850" && d.direction === "inbound") ?? null;
+  const skippedSteps = new Set<number>(((detail as Record<string, unknown>).skippedSteps as number[] | undefined) ?? []);
 
   function handleAdvanceSuccess() {
     queryClient.invalidateQueries({ queryKey: getGetTransactionQueryKey(detail.id) });
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
   }
+
+  const { mutate: skipStep } = useMutation({
+    mutationFn: async (stepNum: number) => {
+      const updated = [...skippedSteps, stepNum];
+      const res = await fetch(`/api/transactions/${detail.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skippedSteps: updated }),
+      });
+      if (!res.ok) throw new Error("Failed to skip step");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getGetTransactionQueryKey(detail.id) });
+      queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
+    },
+    onError: () => toast({ title: "Failed to skip step", variant: "destructive" }),
+  });
+
+  const { mutate: forwardASN, isPending: isForwardingASN } = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/transactions/${detail.id}/advance-step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: 7 }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Failed to forward ASN");
+      }
+      return res.json() as Promise<{ success: boolean; sendResult: { success: boolean; message: string } }>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.sendResult.success ? "ASN forwarded to customer" : "ASN created",
+        description: data.sendResult.message,
+      });
+      handleAdvanceSuccess();
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
@@ -749,6 +838,10 @@ function TransactionDetail({
         <O2CFlowStepper
           documents={documents}
           onAdvance={setActiveStep}
+          onSkip={stepNum => skipStep(stepNum)}
+          onForwardASN={() => forwardASN()}
+          skippedSteps={skippedSteps}
+          isForwardingASN={isForwardingASN}
         />
       </div>
 

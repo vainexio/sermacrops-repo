@@ -27,6 +27,7 @@ async function fmtTx(tx: InstanceType<typeof Transaction>, includeDocs = false) 
     initiatorName: initiator?.name ?? null,
     description: o.description ?? null,
     totalValue: o.totalValue != null ? Number(o.totalValue) : null,
+    skippedSteps: (o.skippedSteps as number[] | undefined) ?? [],
     createdAt: o.createdAt.toISOString(),
     updatedAt: o.updatedAt.toISOString(),
     documents: [] as unknown[],
@@ -78,10 +79,11 @@ router.patch("/transactions/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const tx = await Transaction.findById(raw);
   if (!tx) { res.status(404).json({ error: "Not found" }); return; }
-  const { status, description, totalValue } = req.body;
+  const { status, description, totalValue, skippedSteps } = req.body;
   if (status !== undefined) tx.status = status;
   if (description !== undefined) tx.description = description;
   if (totalValue !== undefined) tx.totalValue = totalValue;
+  if (skippedSteps !== undefined) tx.skippedSteps = skippedSteps;
   await tx.save();
   res.json(await fmtTx(tx, true));
 });
@@ -175,16 +177,20 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
     }
     case 7: {
       if (!step1) { res.status(400).json({ error: "Inbound 850 not found" }); return; }
+      const asnInbound = docs.find(d => d.documentType === "856" && d.direction === "inbound");
       fields = {
         documentType: "856", direction: "outbound",
         senderId: smId, receiverId: step1.senderId.toString(),
         poNumber: po, referenceNumber: po,
         lineItems: step1.lineItems,
-        shipDate: shipDate ?? step1.shipDate,
-        deliveryDate: step1.deliveryDate,
-        carrierName, proNumber, trackingNumber,
-        packageCount, weight,
-        weightUOM: weightUOM ?? "KG",
+        shipDate: asnInbound?.shipDate ?? shipDate ?? step1.shipDate,
+        deliveryDate: asnInbound?.deliveryDate ?? step1.deliveryDate,
+        carrierName: asnInbound?.carrierName ?? carrierName,
+        proNumber: asnInbound?.proNumber ?? proNumber,
+        trackingNumber: asnInbound?.trackingNumber ?? trackingNumber,
+        packageCount: asnInbound?.packageCount ?? packageCount,
+        weight: asnInbound?.weight ?? weight,
+        weightUOM: asnInbound?.weightUOM ?? weightUOM ?? "KG",
         totalAmount: step1.totalAmount,
       };
       break;

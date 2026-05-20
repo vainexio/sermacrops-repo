@@ -418,6 +418,7 @@ export const ListTransactionsResponseItem = zod.object({
   "initiatorName": zod.string().nullish(),
   "description": zod.string().nullish(),
   "totalValue": zod.number().nullish(),
+  "skippedSteps": zod.array(zod.number()).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "documentType": zod.string(),
@@ -474,6 +475,7 @@ export const GetTransactionResponse = zod.object({
   "initiatorName": zod.string().nullish(),
   "description": zod.string().nullish(),
   "totalValue": zod.number().nullish(),
+  "skippedSteps": zod.array(zod.number()).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "documentType": zod.string(),
@@ -515,7 +517,8 @@ export const UpdateTransactionParams = zod.object({
 export const UpdateTransactionBody = zod.object({
   "status": zod.string().optional(),
   "description": zod.string().optional(),
-  "totalValue": zod.number().nullish()
+  "totalValue": zod.number().nullish(),
+  "skippedSteps": zod.array(zod.number()).optional()
 })
 
 export const UpdateTransactionResponse = zod.object({
@@ -526,6 +529,7 @@ export const UpdateTransactionResponse = zod.object({
   "initiatorName": zod.string().nullish(),
   "description": zod.string().nullish(),
   "totalValue": zod.number().nullish(),
+  "skippedSteps": zod.array(zod.number()).optional(),
   "documents": zod.array(zod.object({
   "id": zod.string(),
   "documentType": zod.string(),

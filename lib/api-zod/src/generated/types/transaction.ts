@@ -18,6 +18,7 @@ export interface Transaction {
   description?: string | null;
   /** @nullable */
   totalValue?: number | null;
+  skippedSteps?: number[];
   documents?: EdiDocument[];
   createdAt: string;
   updatedAt: string;

@@ -6,6 +6,7 @@ export interface ITransaction extends Document {
   initiatorId: Types.ObjectId;
   description?: string;
   totalValue?: number;
+  skippedSteps?: number[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +18,7 @@ const TransactionSchema = new Schema<ITransaction>(
     initiatorId: { type: Schema.Types.ObjectId, ref: "Company", required: true },
     description: { type: String },
     totalValue: { type: Number },
+    skippedSteps: { type: [Number], default: [] },
   },
   { timestamps: true }
 );
