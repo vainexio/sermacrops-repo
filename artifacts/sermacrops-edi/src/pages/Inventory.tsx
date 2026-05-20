@@ -258,7 +258,7 @@ function InventoryItemDialog({
   const [quantity, setQuantity] = useState(String(item?.quantity ?? "0"));
   const [unit, setUnit] = useState(item?.unit ?? "pcs");
   const [reorderPoint, setReorderPoint] = useState(String(item?.reorderPoint ?? ""));
-  const [supplierId, setSupplierId] = useState(item?.supplierId ?? "");
+  const [supplierId, setSupplierId] = useState(item?.supplierId ?? "none");
   const [notes, setNotes] = useState(item?.notes ?? "");
 
   const queryClient = useQueryClient();
@@ -270,7 +270,7 @@ function InventoryItemDialog({
         quantity: Number(quantity),
         unit,
         reorderPoint: reorderPoint ? Number(reorderPoint) : undefined,
-        supplierId: supplierId || undefined,
+        supplierId: supplierId && supplierId !== "none" ? supplierId : undefined,
         notes: notes || undefined,
       };
       const url = isEdit ? `${apiBase}/api/inventory/${item.id}` : `${apiBase}/api/inventory`;
@@ -351,7 +351,7 @@ function InventoryItemDialog({
               <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger><SelectValue placeholder="Select supplier…" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {supplierCompanies.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
