@@ -218,3 +218,153 @@ export function parseX12SenderReceiver(payload: string): { sender?: string; rece
   if (!match) return {};
   return { sender: match[1].trim(), receiver: match[2].trim() };
 }
+
+export interface ParsedX12Fields {
+  poNumber?: string;
+  referenceNumber?: string;
+  shipDate?: string;
+  deliveryDate?: string;
+  ackStatus?: string;
+  carrierName?: string;
+  proNumber?: string;
+  trackingNumber?: string;
+  packageCount?: number;
+  weight?: number;
+  weightUOM?: string;
+  currencyCode?: string;
+  invoiceNumber?: string;
+  invoiceDueDate?: string;
+  totalAmount?: number;
+  loadResponseCode?: string;
+  lineItems?: string;
+}
+
+/** Extract business fields from a raw X12 payload for a given document type. */
+export function parseX12Fields(payload: string, docType: string): ParsedX12Fields {
+  // Return the elements of the first matching segment (split on * within the segment)
+  function seg(id: string): string[] | null {
+    const re = new RegExp(`(?:^|~\\s*)${id}\\*([^~]+)`, "m");
+    const m = payload.match(re);
+    return m ? m[1].split("*") : null;
+  }
+
+  function allSegs(id: string): string[][] {
+    const results: string[][] = [];
+    const re = new RegExp(`(?:^|~\\s*)${id}\\*([^~]+)`, "gm");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(payload)) !== null) results.push(m[1].split("*"));
+    return results;
+  }
+
+  function toDate(raw?: string): string | undefined {
+    if (!raw || raw.length < 8) return undefined;
+    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  }
+
+  const f: ParsedX12Fields = {};
+
+  switch (docType) {
+    case "850": {
+      // BEG*00*SA*<poNumber>**<shipDate>
+      const beg = seg("BEG");
+      if (beg) {
+        f.poNumber = beg[2]?.trim() || undefined;
+        f.referenceNumber = f.poNumber;
+        if (beg[4]) f.shipDate = toDate(beg[4].trim());
+      }
+      // CUR*BY*<currencyCode>
+      const cur = seg("CUR");
+      if (cur) f.currencyCode = cur[1]?.trim() || undefined;
+      // PO1*<lineNum>*<qty>*<uom>*<unitPrice>**VN*<desc>
+      const po1s = allSegs("PO1");
+      if (po1s.length > 0) {
+        const items = po1s.map(p => ({
+          description: p[6]?.trim() ?? p[7]?.trim() ?? "Item",
+          quantity: Number(p[1]) || 1,
+          unitPrice: Number(p[3]) || 0,
+          uom: p[2]?.trim() ?? "EA",
+        }));
+        f.lineItems = JSON.stringify(items);
+        f.totalAmount = items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+      }
+      break;
+    }
+
+    case "855": {
+      // BAK*00*<ackStatus>*<poNumber>*<shipDate>
+      const bak = seg("BAK");
+      if (bak) {
+        f.ackStatus = bak[1]?.trim() || undefined;
+        f.poNumber = bak[2]?.trim() || undefined;
+        f.referenceNumber = f.poNumber;
+        if (bak[3]) f.shipDate = toDate(bak[3].trim());
+      }
+      break;
+    }
+
+    case "856": {
+      // BSN*00*<proNumber>*<shipDate>*<time>
+      const bsn = seg("BSN");
+      if (bsn) {
+        f.proNumber = bsn[1]?.trim() || undefined;
+        if (bsn[2]) f.shipDate = toDate(bsn[2].trim());
+      }
+      // PRF*<poNumber>
+      const prf = seg("PRF");
+      if (prf) {
+        f.poNumber = prf[0]?.trim() || undefined;
+        f.referenceNumber = f.poNumber;
+      }
+      // TD5****ZZ*<carrierName>
+      const td5 = seg("TD5");
+      if (td5) f.carrierName = td5[4]?.trim() || undefined;
+      // W12*<weightUOM>*<weight>
+      const w12 = seg("W12");
+      if (w12) {
+        f.weightUOM = w12[0]?.trim() || undefined;
+        const wt = Number(w12[1]);
+        if (!isNaN(wt) && wt > 0) f.weight = wt;
+      }
+      // PKG*F*<packageCount>
+      const pkg = seg("PKG");
+      if (pkg) {
+        const cnt = Number(pkg[1]);
+        if (!isNaN(cnt) && cnt > 0) f.packageCount = cnt;
+      }
+      break;
+    }
+
+    case "810": {
+      // BIG*<invoiceDate>*<invoiceNumber>*<dueDate>*<poNumber>
+      const big = seg("BIG");
+      if (big) {
+        if (big[0]) f.shipDate = toDate(big[0].trim());
+        f.invoiceNumber = big[1]?.trim() || undefined;
+        if (big[2]) f.invoiceDueDate = toDate(big[2].trim());
+        f.poNumber = big[3]?.trim() || undefined;
+        f.referenceNumber = f.poNumber;
+      }
+      const cur2 = seg("CUR");
+      if (cur2) f.currencyCode = cur2[1]?.trim() || undefined;
+      // TDS*<totalCents>
+      const tds = seg("TDS");
+      if (tds) {
+        const raw = Number(tds[0]);
+        if (!isNaN(raw)) f.totalAmount = raw / 100;
+      }
+      break;
+    }
+
+    case "990": {
+      // B1A*<responseCode>
+      const b1a = seg("B1A");
+      if (b1a) f.loadResponseCode = b1a[0]?.trim() || undefined;
+      // B1*<senderEdiId>*<referenceNumber>
+      const b1 = seg("B1");
+      if (b1) f.referenceNumber = b1[1]?.trim() || undefined;
+      break;
+    }
+  }
+
+  return f;
+}

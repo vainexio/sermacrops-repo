@@ -1,8 +1,11 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { InboundMessage } from "../models/InboundMessage";
+import { EdiDocument } from "../models/EdiDocument";
+import { Transaction } from "../models/Transaction";
 import { Company } from "../models/Company";
 import { PartnerEndpoint } from "../models/PartnerEndpoint";
-import { parseX12Type, parseX12ControlNumber, parseX12SenderReceiver } from "../lib/x12";
+import { AuditLog } from "../models/AuditLog";
+import { parseX12Type, parseX12ControlNumber, parseX12SenderReceiver, parseX12Fields } from "../lib/x12";
 
 const router: IRouter = Router();
 
@@ -100,9 +103,91 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
     processedAt: new Date(),
   });
 
+  // ── Auto-create EdiDocument from the inbound message ──────────────────────
+  let documentId: string | null = null;
+  let transactionId: string | null = null;
+
+  if (docType && senderCo && receiverCo) {
+    try {
+      const fields = parseX12Fields(x12Content, docType);
+      const refKey = fields.poNumber || fields.referenceNumber;
+
+      const doc = await EdiDocument.create({
+        documentType: docType,
+        direction: "inbound",
+        status: "delivered",
+        senderId: senderCo._id,
+        receiverId: receiverCo._id,
+        controlNumber: controlNumber ?? String(Date.now()),
+        referenceNumber: fields.referenceNumber,
+        poNumber: fields.poNumber,
+        shipDate: fields.shipDate,
+        deliveryDate: fields.deliveryDate,
+        totalAmount: fields.totalAmount,
+        lineItems: fields.lineItems,
+        currencyCode: fields.currencyCode,
+        ackStatus: fields.ackStatus,
+        carrierName: fields.carrierName,
+        proNumber: fields.proNumber,
+        trackingNumber: fields.trackingNumber,
+        packageCount: fields.packageCount,
+        weight: fields.weight,
+        weightUOM: fields.weightUOM,
+        invoiceNumber: fields.invoiceNumber,
+        invoiceDueDate: fields.invoiceDueDate,
+        loadResponseCode: fields.loadResponseCode,
+        x12Content,
+        sentAt: new Date(),
+        deliveredAt: new Date(),
+      });
+
+      documentId = doc._id.toString();
+
+      await AuditLog.create({
+        action: "received",
+        entityType: "EdiDocument",
+        entityId: documentId,
+        details: JSON.stringify({ documentType: docType, direction: "inbound", source: "inbound_endpoint" }),
+      });
+
+      // Auto-link to (or create) transaction
+      if (refKey) {
+        let tx = await Transaction.findOne({ referenceNumber: refKey });
+
+        if (!tx && docType === "850") {
+          // New inbound 850 from a customer → auto-create transaction
+          tx = await Transaction.create({
+            referenceNumber: refKey,
+            initiatorId: senderCo._id,
+            description: `Order from ${senderCo.name ?? "Customer"}`,
+            status: "open",
+          });
+        }
+
+        if (tx) {
+          await EdiDocument.findByIdAndUpdate(doc._id, { transactionId: tx._id });
+          transactionId = tx._id.toString();
+
+          // Auto-advance transaction status
+          if (docType === "855" && tx.status === "open") {
+            await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
+          }
+          if (docType === "810") {
+            await Transaction.findByIdAndUpdate(tx._id, { status: "completed" });
+          }
+        }
+      }
+    } catch (err) {
+      // non-fatal — InboundMessage was still stored
+      console.error("Auto EdiDocument creation failed:", err);
+    }
+  }
+
   res.json({
     success: errors.length === 0,
     messageId: msg._id.toString(),
+    documentId,
+    transactionId,
     documentType: docType ?? null,
     sender: senderCo?.name ?? sender ?? null,
     receiver: receiverCo?.name ?? receiver ?? null,
