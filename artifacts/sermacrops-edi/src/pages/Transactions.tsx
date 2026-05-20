@@ -982,23 +982,6 @@ export default function Transactions() {
                     {new Date(tx.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                   </p>
                 </button>
-                {isSelected && detail && (
-                  <div className="border-t border-border overflow-y-auto max-h-[70vh]">
-                    <TransactionDetail
-                      detail={detail}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDeleteTx}
-                    />
-                  </div>
-                )}
-                {isSelected && !detail && (
-                  <div className="p-4 text-center">
-                    <div className="animate-pulse space-y-2">
-                      <div className="h-3 bg-muted rounded w-3/4 mx-auto" />
-                      <div className="h-3 bg-muted rounded w-1/2 mx-auto" />
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}
