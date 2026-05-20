@@ -24,6 +24,7 @@ interface InventoryItem {
   quantity: number;
   unit: string;
   reorderPoint?: number | null;
+  unitPrice?: number | null;
   supplierId?: string | null;
   supplierName?: string | null;
   notes?: string | null;
@@ -260,6 +261,7 @@ function InventoryItemDialog({
   const [quantity, setQuantity] = useState(String(item?.quantity ?? "0"));
   const [unit, setUnit] = useState(item?.unit ?? "pcs");
   const [reorderPoint, setReorderPoint] = useState(String(item?.reorderPoint ?? ""));
+  const [unitPrice, setUnitPrice] = useState(String(item?.unitPrice ?? ""));
   const [supplierId, setSupplierId] = useState(item?.supplierId ?? "none");
   const [notes, setNotes] = useState(item?.notes ?? "");
 
@@ -272,6 +274,7 @@ function InventoryItemDialog({
         quantity: Number(quantity),
         unit,
         reorderPoint: reorderPoint ? Number(reorderPoint) : undefined,
+        unitPrice: unitPrice ? Number(unitPrice) : undefined,
         supplierId: supplierId && supplierId !== "none" ? supplierId : undefined,
         notes: notes || undefined,
       };
@@ -346,6 +349,10 @@ function InventoryItemDialog({
               <Label>Reorder Point</Label>
               <Input type="number" min="0" step="0.01" value={reorderPoint} onChange={e => setReorderPoint(e.target.value)} placeholder="Optional" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Unit Price (PHP)</Label>
+            <Input type="number" min="0" step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="e.g. 25.00" />
           </div>
           {category === "raw_material" && (
             <div className="space-y-1.5">
@@ -510,7 +517,7 @@ function CreatePurchaseOrderDialog({
     setSelectedItems(prev => {
       const exists = prev.find(l => l.inventoryItemId === item.id);
       if (exists) return prev.filter(l => l.inventoryItemId !== item.id);
-      return [...prev, { inventoryItemId: item.id, name: item.name, quantity: 1, unit: item.unit, unitPrice: 0 }];
+      return [...prev, { inventoryItemId: item.id, name: item.name, quantity: 1, unit: item.unit, unitPrice: item.unitPrice ?? 0 }];
     });
   }
 

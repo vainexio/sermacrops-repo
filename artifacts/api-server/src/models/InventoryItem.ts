@@ -7,6 +7,7 @@ export interface IInventoryItem extends Document {
   quantity: number;
   unit: string;
   reorderPoint?: number;
+  unitPrice?: number;
   supplierId?: Types.ObjectId;
   notes?: string;
   createdAt: Date;
@@ -21,6 +22,7 @@ const InventoryItemSchema = new Schema<IInventoryItem>(
     quantity: { type: Number, required: true, default: 0 },
     unit: { type: String, required: true },
     reorderPoint: { type: Number },
+    unitPrice: { type: Number },
     supplierId: { type: Schema.Types.ObjectId, ref: "Company" },
     notes: { type: String },
   },

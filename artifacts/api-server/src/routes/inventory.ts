@@ -19,6 +19,7 @@ async function fmt(item: InstanceType<typeof InventoryItem>) {
     quantity: o.quantity,
     unit: o.unit,
     reorderPoint: o.reorderPoint ?? null,
+    unitPrice: o.unitPrice ?? null,
     supplierId: o.supplierId?.toString() ?? null,
     supplierName,
     notes: o.notes ?? null,
@@ -36,7 +37,7 @@ router.get("/inventory", async (req, res): Promise<void> => {
 });
 
 router.post("/inventory", async (req, res): Promise<void> => {
-  const { name, category, sku, quantity, unit, reorderPoint, supplierId, notes } = req.body;
+  const { name, category, sku, quantity, unit, reorderPoint, unitPrice, supplierId, notes } = req.body;
   if (!name || !category || !sku || !unit) {
     res.status(400).json({ error: "name, category, sku, and unit are required" });
     return;
@@ -52,7 +53,7 @@ router.post("/inventory", async (req, res): Promise<void> => {
   }
   const item = await InventoryItem.create({
     name, category, sku, quantity: quantity ?? 0, unit,
-    reorderPoint, supplierId: supplierId || undefined, notes,
+    reorderPoint, unitPrice: unitPrice ?? undefined, supplierId: supplierId || undefined, notes,
   });
   res.status(201).json(await fmt(item));
 });
@@ -66,13 +67,14 @@ router.get("/inventory/:id", async (req, res): Promise<void> => {
 router.patch("/inventory/:id", async (req, res): Promise<void> => {
   const item = await InventoryItem.findById(req.params.id);
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
-  const { name, category, sku, quantity, unit, reorderPoint, supplierId, notes } = req.body;
+  const { name, category, sku, quantity, unit, reorderPoint, unitPrice, supplierId, notes } = req.body;
   if (name !== undefined) item.name = name;
   if (category !== undefined) item.category = category;
   if (sku !== undefined) item.sku = sku;
   if (quantity !== undefined) item.quantity = quantity;
   if (unit !== undefined) item.unit = unit;
   if (reorderPoint !== undefined) item.reorderPoint = reorderPoint;
+  if (unitPrice !== undefined) item.unitPrice = unitPrice ?? undefined;
   if (supplierId !== undefined) item.supplierId = supplierId || undefined;
   if (notes !== undefined) item.notes = notes;
   await item.save();
