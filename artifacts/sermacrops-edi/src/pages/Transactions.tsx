@@ -223,7 +223,7 @@ function O2CFlowStepper({
           const { Icon } = step;
           const isSkipped = status === "skipped";
           const isNext = status === "next";
-          const canSkip = (step.step === 5 || step.step === 6) && isNext;
+          const canSkip = (step.step === 5 || step.step === 6) && !doc && !isSkipped;
 
           // Step 7 two-phase ASN: inbound from Logistics, then forward to Customer
           const asnInbound = step.step === 7
