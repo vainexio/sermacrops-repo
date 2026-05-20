@@ -56,30 +56,6 @@ const O2C_STEPS = [
     Icon: CheckSquare,
   },
   {
-    step: 5, ediType: "850", direction: "outbound" as const,
-    label: "Purchase Order", from: "SERMACROPS", to: "Supplier",
-    description: "Order raw materials from supplier",
-    Icon: ShoppingCart,
-  },
-  {
-    step: 6, ediType: "855", direction: "inbound" as const,
-    label: "PO Acknowledgment", from: "Supplier", to: "SERMACROPS",
-    description: "Supplier confirms receipt",
-    Icon: FileCheck,
-  },
-  {
-    step: 7, ediType: "856", direction: "inbound" as const,
-    label: "Ship Notice (ASN)", from: "Supplier", to: "SERMACROPS",
-    description: "Supplier sends advance ship notice",
-    Icon: Package,
-  },
-  {
-    step: 8, ediType: "810", direction: "inbound" as const,
-    label: "Invoice", from: "Supplier", to: "SERMACROPS",
-    description: "Supplier sends invoice",
-    Icon: Receipt,
-  },
-  {
     step: 9, ediType: "856", direction: "outbound" as const,
     label: "Ship Notice (ASN)", from: "SERMACROPS", to: "Customer",
     description: "Send ship notice to customer",
@@ -414,22 +390,6 @@ function AdvanceStepDialog({
   const [logisticsCompanyId, setLogisticsCompanyId] = useState("");
   const [equipmentType, setEquipmentType] = useState("");
   const [specialInstructions, setSpecialInstructions] = useState("");
-  const [supplierCompanyId, setSupplierCompanyId] = useState("");
-  const [supplierPoNumber, setSupplierPoNumber] = useState("");
-  type LineItem = { description: string; quantity: number; unitPrice: number; uom: string };
-  const [supplierLineItems, setSupplierLineItems] = useState<LineItem[]>([
-    { description: "", quantity: 1, unitPrice: 0, uom: "EA" },
-  ]);
-  function updateSupplierItem(i: number, field: keyof LineItem, val: string | number) {
-    setSupplierLineItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: val } : it));
-  }
-  function addSupplierItem() {
-    setSupplierLineItems(prev => [...prev, { description: "", quantity: 1, unitPrice: 0, uom: "EA" }]);
-  }
-  function removeSupplierItem(i: number) {
-    setSupplierLineItems(prev => prev.filter((_, idx) => idx !== i));
-  }
-  const supplierTotal = supplierLineItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-8)}`);
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
   const [paymentTerms, setPaymentTerms] = useState((step1Doc as EdiDoc | null)?.paymentTerms ?? "");
@@ -483,15 +443,6 @@ function AdvanceStepDialog({
       if (equipmentType) body.equipmentType = equipmentType;
       if (specialInstructions) body.specialInstructions = specialInstructions;
     }
-    if (step.step === 5) {
-      body.supplierCompanyId = supplierCompanyId;
-      if (supplierPoNumber) body.supplierPoNumber = supplierPoNumber;
-      const validItems = supplierLineItems.filter(it => it.description.trim());
-      if (validItems.length > 0) {
-        body.lineItems = JSON.stringify(validItems);
-        body.totalAmount = validItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-      }
-    }
     if (step.step === 9) {
       if (asnShipDate) body.shipDate = asnShipDate;
       if (asnCarrierName) body.carrierName = asnCarrierName;
@@ -511,7 +462,6 @@ function AdvanceStepDialog({
 
   const isValid = () => {
     if (step.step === 3 && !logisticsCompanyId) return false;
-    if (step.step === 5 && !supplierCompanyId) return false;
     return true;
   };
 
@@ -621,100 +571,6 @@ function AdvanceStepDialog({
                   value={specialInstructions}
                   onChange={e => setSpecialInstructions(e.target.value)}
                 />
-              </div>
-            </>
-          )}
-
-          {/* Step 5: PO to Supplier */}
-          {step.step === 5 && (
-            <>
-              <div className="space-y-1.5">
-                <Label>Supplier <span className="text-destructive">*</span></Label>
-                <Select value={supplierCompanyId} onValueChange={setSupplierCompanyId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select supplier…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {partnerCompanies.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>PO Number for Supplier</Label>
-                <Input
-                  placeholder={step1Doc ? `SUP-${step1Doc.poNumber ?? step1Doc.referenceNumber ?? ""}` : "Auto-generated"}
-                  value={supplierPoNumber}
-                  onChange={e => setSupplierPoNumber(e.target.value)}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Leave blank to auto-prefix with SUP- from the customer PO.
-                </p>
-              </div>
-
-              {/* Supplier line items — can differ from customer order */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Items to Order from Supplier</Label>
-                  <button
-                    type="button"
-                    onClick={addSupplierItem}
-                    className="text-[11px] text-blue-600 hover:underline font-medium"
-                  >
-                    + Add item
-                  </button>
-                </div>
-                <p className="text-[11px] text-muted-foreground -mt-1">
-                  These are raw ingredients or materials — they don't have to match the customer order.
-                </p>
-                <div className="space-y-2">
-                  {supplierLineItems.map((item, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_60px_72px_52px_20px] gap-1.5 items-center">
-                      <Input
-                        placeholder="Description"
-                        value={item.description}
-                        onChange={e => updateSupplierItem(i, "description", e.target.value)}
-                        className="h-7 text-xs"
-                      />
-                      <Input
-                        type="number" min="1" placeholder="Qty"
-                        value={item.quantity}
-                        onChange={e => updateSupplierItem(i, "quantity", Number(e.target.value))}
-                        className="h-7 text-xs"
-                      />
-                      <Input
-                        type="number" min="0" step="0.01" placeholder="Price"
-                        value={item.unitPrice}
-                        onChange={e => updateSupplierItem(i, "unitPrice", Number(e.target.value))}
-                        className="h-7 text-xs"
-                      />
-                      <Select value={item.uom} onValueChange={v => updateSupplierItem(i, "uom", v)}>
-                        <SelectTrigger className="h-7 text-xs px-2"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="EA">EA</SelectItem>
-                          <SelectItem value="KG">KG</SelectItem>
-                          <SelectItem value="LB">LB</SelectItem>
-                          <SelectItem value="CS">CS</SelectItem>
-                          <SelectItem value="BG">BG</SelectItem>
-                          <SelectItem value="MT">MT</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {supplierLineItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeSupplierItem(i)}
-                          className="text-muted-foreground hover:text-destructive text-xs leading-none"
-                        >✕</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {supplierTotal > 0 && (
-                  <p className="text-xs text-right text-muted-foreground font-medium">
-                    Total: PHP {supplierTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </p>
-                )}
               </div>
             </>
           )}

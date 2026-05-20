@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, FileText, Inbox, ArrowLeftRight,
-  Globe, Building2, ScrollText, Menu, X, Zap, MoreHorizontal
+  Globe, Building2, ScrollText, Menu, X, Zap, MoreHorizontal, Boxes
 } from "lucide-react";
 import { useState } from "react";
 
@@ -11,6 +11,7 @@ const nav = [
   { href: "/documents", label: "Documents", icon: FileText },
   { href: "/inbound", label: "Inbound", icon: Inbox },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/inventory", label: "Inventory", icon: Boxes },
   { href: "/partners", label: "Endpoints", icon: Globe },
   { href: "/companies", label: "Companies", icon: Building2 },
   { href: "/logs", label: "Audit Logs", icon: ScrollText },

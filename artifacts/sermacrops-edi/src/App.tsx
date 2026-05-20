@@ -12,6 +12,7 @@ import Transactions from "@/pages/Transactions";
 import Partners from "@/pages/Partners";
 import Companies from "@/pages/Companies";
 import Logs from "@/pages/Logs";
+import Inventory from "@/pages/Inventory";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -27,6 +28,7 @@ function Router() {
         <Route path="/documents/:id" component={DocumentDetail} />
         <Route path="/documents" component={Documents} />
         <Route path="/inbound" component={Inbound} />
+        <Route path="/inventory" component={Inventory} />
         <Route path="/transactions" component={Transactions} />
         <Route path="/partners" component={Partners} />
         <Route path="/companies" component={Companies} />

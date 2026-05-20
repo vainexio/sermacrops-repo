@@ -6,6 +6,8 @@ import ediDocumentsRouter from "./edi-documents";
 import inboundRouter from "./inbound";
 import transactionsRouter from "./transactions";
 import dashboardRouter from "./dashboard";
+import inventoryRouter from "./inventory";
+import procurementRouter from "./procurement";
 
 const router: IRouter = Router();
 
@@ -16,5 +18,7 @@ router.use(ediDocumentsRouter);
 router.use(inboundRouter);
 router.use(transactionsRouter);
 router.use(dashboardRouter);
+router.use(inventoryRouter);
+router.use(procurementRouter);
 
 export default router;

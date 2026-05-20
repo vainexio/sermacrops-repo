@@ -106,14 +106,12 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
     step,
     ackStatus,
     logisticsCompanyId, equipmentType, specialInstructions,
-    supplierCompanyId, supplierPoNumber, lineItems: supplierLineItems, totalAmount: supplierTotalAmount,
     shipDate, carrierName, proNumber, trackingNumber, packageCount, weight, weightUOM,
     invoiceNumber, invoiceDueDate, paymentTerms,
   } = req.body as {
     step: number;
     ackStatus?: string;
     logisticsCompanyId?: string; equipmentType?: string; specialInstructions?: string;
-    supplierCompanyId?: string; supplierPoNumber?: string; lineItems?: string; totalAmount?: number;
     shipDate?: string; carrierName?: string; proNumber?: string; trackingNumber?: string;
     packageCount?: number; weight?: number; weightUOM?: string;
     invoiceNumber?: string; invoiceDueDate?: string; paymentTerms?: string;
@@ -156,22 +154,6 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
         shipDate: step1.shipDate, deliveryDate: step1.deliveryDate,
         equipmentType, specialInstructions,
         totalAmount: step1.totalAmount,
-      };
-      break;
-    }
-    case 5: {
-      if (!step1) { res.status(400).json({ error: "Inbound 850 not found" }); return; }
-      if (!supplierCompanyId) { res.status(400).json({ error: "supplierCompanyId is required for step 5" }); return; }
-      const supPo = supplierPoNumber || `SUP-${po}`;
-      fields = {
-        documentType: "850", direction: "outbound",
-        senderId: smId, receiverId: supplierCompanyId,
-        poNumber: supPo, referenceNumber: supPo,
-        shipDate: step1.shipDate, deliveryDate: step1.deliveryDate,
-        lineItems: supplierLineItems ?? step1.lineItems,
-        totalAmount: supplierTotalAmount ?? step1.totalAmount,
-        currencyCode: step1.currencyCode ?? "PHP",
-        paymentTerms: step1.paymentTerms,
       };
       break;
     }
