@@ -330,7 +330,7 @@ export default function Inbound() {
                   )}
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
-                    <pre className="text-[11px] font-mono bg-muted/60 rounded p-3 overflow-x-auto whitespace-pre-wrap border border-border max-h-48">
+                    <pre className="text-[11px] font-mono bg-white text-black rounded p-3 overflow-x-auto whitespace-pre-wrap border border-border max-h-48">
                       {selectedMsg.rawPayload}
                     </pre>
                   </div>
@@ -407,7 +407,7 @@ export default function Inbound() {
               {/* Raw X12 Payload */}
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
-                <pre className="text-[11px] font-mono bg-[#0f1117] text-green-400 rounded p-4 overflow-x-auto whitespace-pre-wrap border border-border max-h-72 leading-relaxed">
+                <pre className="text-[11px] font-mono bg-white text-black rounded p-4 overflow-x-auto whitespace-pre-wrap border border-border max-h-72 leading-relaxed">
                   {selectedMsg.rawPayload}
                 </pre>
               </div>
