@@ -284,7 +284,9 @@ function O2CFlowStepper({
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-xs text-muted-foreground shrink-0">
-                          {doc.senderName} → {doc.receiverName}
+                          {step.direction === "inbound"
+                            ? `Received from: ${doc.senderName ?? step.from}`
+                            : `Sent to: ${doc.receiverName ?? step.to}`}
                         </p>
                         <div className="flex items-center gap-2 ml-auto">
                           <StatusBadge status={doc.status} />
@@ -401,6 +403,20 @@ function AdvanceStepDialog({
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [supplierCompanyId, setSupplierCompanyId] = useState("");
   const [supplierPoNumber, setSupplierPoNumber] = useState("");
+  type LineItem = { description: string; quantity: number; unitPrice: number; uom: string };
+  const [supplierLineItems, setSupplierLineItems] = useState<LineItem[]>([
+    { description: "", quantity: 1, unitPrice: 0, uom: "EA" },
+  ]);
+  function updateSupplierItem(i: number, field: keyof LineItem, val: string | number) {
+    setSupplierLineItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: val } : it));
+  }
+  function addSupplierItem() {
+    setSupplierLineItems(prev => [...prev, { description: "", quantity: 1, unitPrice: 0, uom: "EA" }]);
+  }
+  function removeSupplierItem(i: number) {
+    setSupplierLineItems(prev => prev.filter((_, idx) => idx !== i));
+  }
+  const supplierTotal = supplierLineItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-8)}`);
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
   const [paymentTerms, setPaymentTerms] = useState((step1Doc as EdiDoc | null)?.paymentTerms ?? "");
@@ -457,6 +473,11 @@ function AdvanceStepDialog({
     if (step.step === 5) {
       body.supplierCompanyId = supplierCompanyId;
       if (supplierPoNumber) body.supplierPoNumber = supplierPoNumber;
+      const validItems = supplierLineItems.filter(it => it.description.trim());
+      if (validItems.length > 0) {
+        body.lineItems = JSON.stringify(validItems);
+        body.totalAmount = validItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+      }
     }
     if (step.step === 7) {
       if (asnShipDate) body.shipDate = asnShipDate;
@@ -617,6 +638,70 @@ function AdvanceStepDialog({
                 <p className="text-[11px] text-muted-foreground">
                   Leave blank to auto-prefix with SUP- from the customer PO.
                 </p>
+              </div>
+
+              {/* Supplier line items — can differ from customer order */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Items to Order from Supplier</Label>
+                  <button
+                    type="button"
+                    onClick={addSupplierItem}
+                    className="text-[11px] text-blue-600 hover:underline font-medium"
+                  >
+                    + Add item
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground -mt-1">
+                  These are raw ingredients or materials — they don't have to match the customer order.
+                </p>
+                <div className="space-y-2">
+                  {supplierLineItems.map((item, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_60px_72px_52px_20px] gap-1.5 items-center">
+                      <Input
+                        placeholder="Description"
+                        value={item.description}
+                        onChange={e => updateSupplierItem(i, "description", e.target.value)}
+                        className="h-7 text-xs"
+                      />
+                      <Input
+                        type="number" min="1" placeholder="Qty"
+                        value={item.quantity}
+                        onChange={e => updateSupplierItem(i, "quantity", Number(e.target.value))}
+                        className="h-7 text-xs"
+                      />
+                      <Input
+                        type="number" min="0" step="0.01" placeholder="Price"
+                        value={item.unitPrice}
+                        onChange={e => updateSupplierItem(i, "unitPrice", Number(e.target.value))}
+                        className="h-7 text-xs"
+                      />
+                      <Select value={item.uom} onValueChange={v => updateSupplierItem(i, "uom", v)}>
+                        <SelectTrigger className="h-7 text-xs px-2"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EA">EA</SelectItem>
+                          <SelectItem value="KG">KG</SelectItem>
+                          <SelectItem value="LB">LB</SelectItem>
+                          <SelectItem value="CS">CS</SelectItem>
+                          <SelectItem value="BG">BG</SelectItem>
+                          <SelectItem value="MT">MT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {supplierLineItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSupplierItem(i)}
+                          className="text-muted-foreground hover:text-destructive text-xs leading-none"
+                        >✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {supplierTotal > 0 && (
+                  <p className="text-xs text-right text-muted-foreground font-medium">
+                    Total: PHP {supplierTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  </p>
+                )}
               </div>
             </>
           )}

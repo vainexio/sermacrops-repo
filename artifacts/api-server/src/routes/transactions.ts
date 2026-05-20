@@ -106,14 +106,14 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
     step,
     ackStatus,
     logisticsCompanyId, equipmentType, specialInstructions,
-    supplierCompanyId, supplierPoNumber,
+    supplierCompanyId, supplierPoNumber, lineItems: supplierLineItems, totalAmount: supplierTotalAmount,
     shipDate, carrierName, proNumber, trackingNumber, packageCount, weight, weightUOM,
     invoiceNumber, invoiceDueDate, paymentTerms,
   } = req.body as {
     step: number;
     ackStatus?: string;
     logisticsCompanyId?: string; equipmentType?: string; specialInstructions?: string;
-    supplierCompanyId?: string; supplierPoNumber?: string;
+    supplierCompanyId?: string; supplierPoNumber?: string; lineItems?: string; totalAmount?: number;
     shipDate?: string; carrierName?: string; proNumber?: string; trackingNumber?: string;
     packageCount?: number; weight?: number; weightUOM?: string;
     invoiceNumber?: string; invoiceDueDate?: string; paymentTerms?: string;
@@ -168,8 +168,8 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
         senderId: smId, receiverId: supplierCompanyId,
         poNumber: supPo, referenceNumber: supPo,
         shipDate: step1.shipDate, deliveryDate: step1.deliveryDate,
-        lineItems: step1.lineItems,
-        totalAmount: step1.totalAmount,
+        lineItems: supplierLineItems ?? step1.lineItems,
+        totalAmount: supplierTotalAmount ?? step1.totalAmount,
         currencyCode: step1.currencyCode ?? "PHP",
         paymentTerms: step1.paymentTerms,
       };
