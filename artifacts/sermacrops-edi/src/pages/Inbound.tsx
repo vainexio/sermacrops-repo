@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useListInboundMessages, getListInboundMessagesQueryKey, useReceiveInbound, useListPartnerEndpoints } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import StatusBadge from "@/components/StatusBadge";
-import DocTypeBadge, { docTypeLabel } from "@/components/DocTypeBadge";
+import DocTypeBadge from "@/components/DocTypeBadge";
+import { EdiDocumentCard } from "@/components/EdiDocumentCard";
+import { parseX12ToDocumentData } from "@/lib/parseX12";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -328,122 +330,55 @@ export default function Inbound() {
 
       {/* Right detail panel */}
       <div className="flex-1 hidden lg:block overflow-y-auto">
-        {selectedMsg ? (
-          <div className="p-6 space-y-5">
-
-            {/* Document card */}
-            <div className="border border-border rounded-lg overflow-hidden bg-card text-sm">
-              {/* Header */}
-              <div className="bg-muted/30 border-b border-border px-6 py-4 flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    {selectedMsg.documentType && <DocTypeBadge type={selectedMsg.documentType} />}
-                    <StatusBadge status={selectedMsg.status} />
-                    <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">inbound</span>
-                  </div>
-                  <h2 className="text-base font-bold text-foreground">
-                    {selectedMsg.documentType ? docTypeLabel(selectedMsg.documentType) : "EDI Message"}
-                  </h2>
-                </div>
-                <div className="text-right shrink-0">
-                  {selectedMsg.controlNumber && (
-                    <p className="text-xs text-muted-foreground">
-                      Control # <span className="font-mono font-semibold text-foreground">{selectedMsg.controlNumber}</span>
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">{new Date(selectedMsg.createdAt).toLocaleString()}</p>
-                </div>
+        {selectedMsg ? (() => {
+          const parsedDoc = parseX12ToDocumentData(selectedMsg.rawPayload, {
+            documentType: selectedMsg.documentType,
+            controlNumber: selectedMsg.controlNumber,
+            senderName: selectedMsg.senderName,
+            receiverName: selectedMsg.receiverName,
+            status: selectedMsg.status,
+            createdAt: selectedMsg.createdAt,
+          });
+          return (
+            <div className="p-6 space-y-5">
+              {/* Message meta strip */}
+              <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+                <span>Message ID: <span className="font-mono text-foreground">{selectedMsg.id}</span></span>
+                <span>·</span>
+                <span>Received: <span className="text-foreground">{new Date(selectedMsg.createdAt).toLocaleString()}</span></span>
+                {selectedMsg.processedAt && (
+                  <>
+                    <span>·</span>
+                    <span>Processed: <span className="text-foreground">{new Date(selectedMsg.processedAt).toLocaleString()}</span></span>
+                  </>
+                )}
               </div>
 
-              {/* From / To */}
-              <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
-                <div className="px-5 py-4">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Sender (From)</p>
-                  <p className="font-semibold text-foreground">{selectedMsg.senderName ?? "Unknown"}</p>
-                </div>
-                <div className="px-5 py-4">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Receiver (To)</p>
-                  <p className="font-semibold text-foreground">{selectedMsg.receiverName ?? "Unknown"}</p>
-                </div>
-              </div>
+              {/* Full EdiDocumentCard with all parsed details */}
+              <EdiDocumentCard doc={parsedDoc} />
 
-              {/* Timestamps & IDs */}
-              <div className="px-5 py-4 border-b border-border">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-3">Message Details</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
-                  {[
-                    { label: "Message ID", value: selectedMsg.id },
-                    { label: "Received At", value: new Date(selectedMsg.createdAt).toLocaleString() },
-                    { label: "Processed At", value: selectedMsg.processedAt ? new Date(selectedMsg.processedAt).toLocaleString() : null },
-                  ].filter(f => f.value).map(({ label, value }) => (
-                    <div key={label}>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</p>
-                      <p className="text-sm font-medium text-foreground mt-0.5 break-all">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Transaction Details */}
-              {(() => {
-                const parsed: Record<string, string | null> = (() => {
-                  try { return selectedMsg.parsedData ? JSON.parse(selectedMsg.parsedData) : {}; }
-                  catch { return {}; }
-                })();
-                const fieldMap: { label: string; value: string | null | undefined }[] = [
-                  { label: "Document Type", value: parsed.docType ?? selectedMsg.documentType },
-                  { label: "Control Number", value: parsed.controlNumber ?? selectedMsg.controlNumber },
-                  { label: "Sender EDI ID", value: parsed.sender },
-                  { label: "Receiver EDI ID", value: parsed.receiver },
-                  { label: "Interchange Date", value: parsed.interchangeDate },
-                  { label: "Interchange Time", value: parsed.interchangeTime },
-                  { label: "Version", value: parsed.version },
-                  { label: "PO Number", value: parsed.poNumber ?? parsed.purchaseOrderNumber },
-                  { label: "Ship Date", value: parsed.shipDate ?? parsed.actualShipDate },
-                  { label: "Delivery Date", value: parsed.deliveryDate ?? parsed.requestedDeliveryDate },
-                  { label: "Currency", value: parsed.currency ?? parsed.currencyCode },
-                  { label: "Total Amount", value: parsed.totalAmount },
-                  { label: "Carrier", value: parsed.carrier ?? parsed.carrierName },
-                  { label: "PRO Number", value: parsed.proNumber ?? parsed.proNum },
-                ].filter(f => f.value != null && String(f.value).trim() !== "");
-                if (!fieldMap.length) return null;
-                return (
-                  <div className="px-5 py-4 border-b border-border">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-3">Transaction Details</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
-                      {fieldMap.map(({ label, value }) => (
-                        <div key={label}>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</p>
-                          <p className="text-sm font-medium text-foreground mt-0.5">{String(value)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Validation Errors */}
+              {/* Validation errors (shown separately if present) */}
               {selectedMsg.validationErrors && (
-                <div className="px-5 py-4 border-b border-border bg-red-50/50 dark:bg-red-900/10">
+                <div className="border border-red-200 dark:border-red-800 rounded-lg px-5 py-4 bg-red-50/50 dark:bg-red-900/10">
                   <p className="text-[10px] text-red-700 dark:text-red-400 uppercase tracking-widest font-semibold mb-2">Validation Errors</p>
-                  {(() => { try { return JSON.parse(selectedMsg.validationErrors); } catch { return [selectedMsg.validationErrors]; } })().map((e: string, i: number) => (
+                  {((): string[] => { try { return JSON.parse(selectedMsg.validationErrors!); } catch { return [selectedMsg.validationErrors!]; } })().map((e, i) => (
                     <p key={i} className="text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
                       <span className="mt-0.5 shrink-0">•</span>{e}
                     </p>
                   ))}
                 </div>
               )}
-            </div>
 
-            {/* Raw X12 Payload */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
-              <pre className="text-[11px] font-mono bg-[#0f1117] text-green-400 rounded p-4 overflow-x-auto whitespace-pre-wrap border border-border max-h-72 leading-relaxed">
-                {selectedMsg.rawPayload}
-              </pre>
+              {/* Raw X12 Payload */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
+                <pre className="text-[11px] font-mono bg-[#0f1117] text-green-400 rounded p-4 overflow-x-auto whitespace-pre-wrap border border-border max-h-72 leading-relaxed">
+                  {selectedMsg.rawPayload}
+                </pre>
+              </div>
             </div>
-          </div>
-        ) : (
+          );
+        })() : (
           <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
             <Inbox className="w-10 h-10 opacity-20" />
             <p className="text-sm">Select a message to inspect its contents</p>
