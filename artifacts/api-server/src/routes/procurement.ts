@@ -196,15 +196,61 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
       break;
     }
     case 2: {
-      // Supplier acknowledged — mark procurement as acknowledged
+      // Inbound 855 — supplier acknowledged the PO
       order.currentStep = 3;
       order.status = "acknowledged";
       await order.save();
-      sendResult = { success: true, message: "Supplier acknowledgment recorded" };
+      sendResult = { success: true, message: "Supplier acknowledgment (855) recorded" };
       break;
     }
     case 3: {
-      // Goods received — update inventory quantities
+      // Inbound 856 — Advance Ship Notice from supplier
+      const cn3 = nextCN();
+      const asnDoc = await EdiDocument.create({
+        documentType: "856",
+        direction: "inbound",
+        senderId: supId,
+        receiverId: smId,
+        controlNumber: cn3,
+        referenceNumber: order.referenceNumber,
+        poNumber: order.referenceNumber,
+        status: "delivered",
+        sentAt: new Date(),
+        deliveredAt: new Date(),
+      });
+
+      await AuditLog.create({
+        action: "asn_received",
+        entityType: "ProcurementOrder",
+        entityId: order._id.toString(),
+        details: JSON.stringify({ documentType: "856", direction: "inbound", procurementOrderId: order._id.toString(), ediDocumentId: asnDoc._id.toString() }),
+      });
+
+      order.currentStep = 4;
+      order.status = "received";
+      await order.save();
+      sendResult = { success: true, message: "Advance Ship Notice (856) received — goods in transit" };
+      break;
+    }
+    case 4: {
+      // Inbound 810 — Invoice from supplier; update inventory and start billing
+      const cn4 = nextCN();
+      const invoiceDoc = await EdiDocument.create({
+        documentType: "810",
+        direction: "inbound",
+        senderId: supId,
+        receiverId: smId,
+        controlNumber: cn4,
+        referenceNumber: order.referenceNumber,
+        poNumber: order.referenceNumber,
+        totalAmount: order.totalValue,
+        currencyCode: "PHP",
+        status: "delivered",
+        sentAt: new Date(),
+        deliveredAt: new Date(),
+      });
+
+      // Update inventory quantities on invoice receipt
       const updateErrors: string[] = [];
       for (const li of order.lineItems) {
         if (li.inventoryItemId) {
@@ -217,22 +263,23 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
           }
         }
       }
-      order.currentStep = 3;
-      order.status = "completed";
+
+      order.currentStep = 4;
+      order.status = "billing";
       await order.save();
 
       await AuditLog.create({
-        action: "goods_received",
+        action: "invoice_received",
         entityType: "ProcurementOrder",
         entityId: order._id.toString(),
-        details: JSON.stringify({ referenceNumber: order.referenceNumber, lineItems: order.lineItems }),
+        details: JSON.stringify({ documentType: "810", direction: "inbound", procurementOrderId: order._id.toString(), ediDocumentId: invoiceDoc._id.toString(), inventoryErrors: updateErrors }),
       });
 
       sendResult = {
         success: updateErrors.length === 0,
         message: updateErrors.length === 0
-          ? "Goods received and inventory updated"
-          : `Goods received with warnings: ${updateErrors.join(", ")}`,
+          ? "Invoice (810) received — inventory updated, billing in progress"
+          : `Invoice received with warnings: ${updateErrors.join(", ")}`,
       };
       break;
     }

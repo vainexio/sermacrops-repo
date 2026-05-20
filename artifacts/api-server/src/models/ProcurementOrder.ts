@@ -10,7 +10,7 @@ export interface IProcurementLineItem {
 
 export interface IProcurementOrder extends Document {
   referenceNumber: string;
-  status: "open" | "acknowledged" | "received" | "completed";
+  status: "open" | "acknowledged" | "received" | "billing" | "completed";
   supplierId: Types.ObjectId;
   currentStep: number;
   skippedSteps: number[];
@@ -36,7 +36,7 @@ const ProcurementLineItemSchema = new Schema<IProcurementLineItem>(
 const ProcurementOrderSchema = new Schema<IProcurementOrder>(
   {
     referenceNumber: { type: String, required: true, unique: true },
-    status: { type: String, default: "open", enum: ["open", "acknowledged", "received", "completed"] },
+    status: { type: String, default: "open", enum: ["open", "acknowledged", "received", "billing", "completed"] },
     supplierId: { type: Schema.Types.ObjectId, ref: "Company", required: true },
     currentStep: { type: Number, default: 1 },
     skippedSteps: { type: [Number], default: [] },

@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Pencil, Trash2, Package, Leaf, ShoppingCart, FileCheck,
   CheckCircle2, Clock, Circle, ArrowRight, Loader2, AlertTriangle,
-  ChevronsRight, MinusCircle, Send, Boxes,
+  ChevronsRight, MinusCircle, Send, Boxes, FileText,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -93,9 +93,10 @@ function LowStockBadge({ quantity, reorderPoint }: { quantity: number; reorderPo
 // ─── Procurement Step Indicator ───────────────────────────────────────────────
 
 const PROC_STEPS = [
-  { step: 1, label: "PO Sent to Supplier", direction: "outbound", Icon: ShoppingCart },
-  { step: 2, label: "Supplier Acknowledged", direction: "inbound", Icon: FileCheck },
-  { step: 3, label: "Goods Received", direction: "inbound", Icon: Package },
+  { step: 1, label: "PO Sent to Supplier",      direction: "outbound", Icon: ShoppingCart, docType: "850", passive: false, waitLabel: null },
+  { step: 2, label: "Supplier Acknowledged",     direction: "inbound",  Icon: FileCheck,   docType: "855", passive: true,  waitLabel: "Awaiting inbound 855" },
+  { step: 3, label: "ASN from Supplier",         direction: "inbound",  Icon: Package,     docType: "856", passive: true,  waitLabel: "Awaiting inbound 856" },
+  { step: 4, label: "Invoice from Supplier",     direction: "inbound",  Icon: FileText,    docType: "810", passive: true,  waitLabel: "Awaiting inbound 810" },
 ] as const;
 
 type ProcStep = typeof PROC_STEPS[number];
@@ -197,24 +198,20 @@ function ProcurementStepper({
                     </span>
                   </div>
 
-                  {isNext && !isSkipped && step.step !== 2 && (
+                  {isNext && !isSkipped && !step.passive && (
                     <Button
                       size="sm"
-                      className={`h-6 text-[10px] px-2 gap-1 shrink-0 ${
-                        isOutbound
-                          ? "bg-blue-600 hover:bg-blue-700 text-white"
-                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                      }`}
+                      className="h-6 text-[10px] px-2 gap-1 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={() => onAdvance(step.step)}
                       disabled={isAdvancing}
                     >
                       {isAdvancing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
-                      {step.step === 1 ? "Send PO" : "Confirm Receipt"}
+                      Send PO
                     </Button>
                   )}
-                  {isNext && !isSkipped && step.step === 2 && (
+                  {isNext && !isSkipped && step.passive && step.waitLabel && (
                     <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 italic shrink-0">
-                      <Clock className="w-2.5 h-2.5" /> Awaiting inbound 855
+                      <Clock className="w-2.5 h-2.5" /> {step.waitLabel}
                     </span>
                   )}
                 </div>
@@ -716,10 +713,11 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
   });
 
   const statusColors: Record<string, string> = {
-    open: "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400",
+    open:         "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400",
     acknowledged: "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
-    received: "bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400",
-    completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
+    received:     "bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400",
+    billing:      "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400",
+    completed:    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
   };
 
   return (
