@@ -177,21 +177,23 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
     }
     case 7: {
       if (!step1) { res.status(400).json({ error: "Inbound 850 not found" }); return; }
-      const asnInbound = docs.find(d => d.documentType === "856" && d.direction === "inbound");
+      const step3 = docs.find(d => d.documentType === "204" && d.direction === "outbound");
       fields = {
         documentType: "856", direction: "outbound",
         senderId: smId, receiverId: step1.senderId.toString(),
         poNumber: po, referenceNumber: po,
         lineItems: step1.lineItems,
-        shipDate: asnInbound?.shipDate ?? shipDate ?? step1.shipDate,
-        deliveryDate: asnInbound?.deliveryDate ?? step1.deliveryDate,
-        carrierName: asnInbound?.carrierName ?? carrierName,
-        proNumber: asnInbound?.proNumber ?? proNumber,
-        trackingNumber: asnInbound?.trackingNumber ?? trackingNumber,
-        packageCount: asnInbound?.packageCount ?? packageCount,
-        weight: asnInbound?.weight ?? weight,
-        weightUOM: asnInbound?.weightUOM ?? weightUOM ?? "KG",
+        shipDate: shipDate ?? step1.shipDate,
+        deliveryDate: step1.deliveryDate,
+        carrierName: carrierName ?? step3?.equipmentType,
+        proNumber,
+        trackingNumber,
+        packageCount,
+        weight,
+        weightUOM: weightUOM ?? "KG",
         totalAmount: step1.totalAmount,
+        equipmentType: step3?.equipmentType,
+        specialInstructions: step3?.specialInstructions,
       };
       break;
     }

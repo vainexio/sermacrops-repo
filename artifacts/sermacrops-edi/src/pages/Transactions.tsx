@@ -68,8 +68,8 @@ const O2C_STEPS = [
   },
   {
     step: 7, ediType: "856", direction: "outbound" as const,
-    label: "Ship Notice (ASN)", from: "Logistics", to: "Customer",
-    description: "Forward shipment notification to customer",
+    label: "Ship Notice (ASN)", from: "SERMACROPS", to: "Customer",
+    description: "Send ship notice to customer",
     Icon: Package,
   },
   {
@@ -179,17 +179,13 @@ function O2CFlowStepper({
   documents,
   onAdvance,
   onSkip,
-  onForwardASN,
   skippedSteps,
-  isForwardingASN = false,
   isSkippingStep = false,
 }: {
   documents: EdiDoc[];
   onAdvance: (step: O2CStep) => void;
   onSkip: (stepNum: number) => void;
-  onForwardASN: () => void;
   skippedSteps: Set<number>;
-  isForwardingASN?: boolean;
   isSkippingStep?: boolean;
 }) {
   const completedCount = O2C_STEPS.filter(s => {
@@ -227,14 +223,8 @@ function O2CFlowStepper({
           const isNext = status === "next";
           const canSkip = !doc && !isSkipped;
 
-          // Step 7 two-phase ASN: inbound from Logistics, then forward to Customer
-          const asnInbound = step.step === 7
-            ? documents.find(d => d.documentType === "856" && d.direction === "inbound") ?? null
-            : null;
-          const step7InboundReceived = asnInbound != null && getDocStatus(asnInbound) === "completed";
-
-          const isInboundNext = isNext && (step.step !== 7 ? step.direction === "inbound" : !step7InboundReceived);
-          const isOutboundNext = isNext && (step.step !== 7 ? step.direction === "outbound" : step7InboundReceived);
+          const isInboundNext = isNext && step.direction === "inbound";
+          const isOutboundNext = isNext && step.direction === "outbound";
 
           return (
             <div key={step.step} className="flex gap-3">
@@ -284,73 +274,14 @@ function O2CFlowStepper({
 
                   {/* Direction */}
                   <p className={`text-xs mb-2 ${isSkipped || status === "pending" ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
-                    {step.step === 7
-                      ? <span>Logistics <span className="mx-0.5">→</span> SERMACROPS <span className="mx-0.5">→</span> Customer</span>
-                      : <span>{step.from} <span className="mx-1">→</span> {step.to}</span>
-                    }
+                    <span>{step.from} <span className="mx-1">→</span> {step.to}</span>
                   </p>
 
                   {/* Content */}
                   {isSkipped ? (
                     <p className="text-[11px] text-muted-foreground/50 italic">Skipped</p>
-                  ) : step.step === 7 && !doc ? (
-                    // Step 7 two-phase: no outbound 856 yet
-                    <div className="space-y-2">
-                      {asnInbound && (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs text-muted-foreground shrink-0">
-                            {asnInbound.senderName} → SERMACROPS
-                          </p>
-                          <div className="flex items-center gap-2 ml-auto">
-                            <StatusBadge status={asnInbound.status} />
-                            {asnInbound.sentAt && (
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(asnInbound.sentAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                            )}
-                            <Link href={`/documents/${asnInbound.id}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
-                              View →
-                            </Link>
-                          </div>
-                        </div>
-                      )}
-                      {isNext && step7InboundReceived ? (
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <p className="text-[11px] text-blue-600 dark:text-blue-400">ASN received — forward to customer</p>
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shrink-0"
-                            onClick={onForwardASN}
-                            disabled={isForwardingASN}
-                          >
-                            <Send className="w-3 h-3" /> {isForwardingASN ? "Forwarding…" : "Forward to Customer"}
-                          </Button>
-                        </div>
-                      ) : isNext ? (
-                        <div className="flex items-center gap-1.5">
-                          <Hourglass className="w-3 h-3 text-amber-500 animate-pulse shrink-0" />
-                          <p className="text-[11px] text-amber-600 dark:text-amber-400">Awaiting ASN from Logistics</p>
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-muted-foreground/60 italic">{step.description}</p>
-                      )}
-                    </div>
                   ) : doc ? (
                     <div className="space-y-2">
-                      {/* For step 7, also show the inbound ASN row above the outbound */}
-                      {step.step === 7 && asnInbound && (
-                        <div className="flex items-center gap-2 flex-wrap pb-1.5 border-b border-border/40">
-                          <p className="text-xs text-muted-foreground shrink-0">
-                            {asnInbound.senderName} → SERMACROPS
-                          </p>
-                          <div className="flex items-center gap-2 ml-auto">
-                            <StatusBadge status={asnInbound.status} />
-                            <Link href={`/documents/${asnInbound.id}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
-                              View →
-                            </Link>
-                          </div>
-                        </div>
-                      )}
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-xs text-muted-foreground shrink-0">
                           {doc.senderName} → {doc.receiverName}
@@ -415,9 +346,6 @@ function O2CFlowStepper({
         const matchedIds = new Set(
           O2C_STEPS.map(s => matchDocForStep(s, documents)?.id).filter(Boolean)
         );
-        // Also mark the inbound 856 (step 7 source ASN from Logistics) as matched
-        const step7Inbound = documents.find(d => d.documentType === "856" && d.direction === "inbound");
-        if (step7Inbound) matchedIds.add(step7Inbound.id);
         const extras = documents.filter(d => !matchedIds.has(d.id));
         if (extras.length === 0) return null;
         return (
@@ -446,6 +374,7 @@ function AdvanceStepDialog({
   transactionId,
   step,
   step1Doc,
+  step3Doc,
   companies,
   onClose,
   onSuccess,
@@ -453,6 +382,7 @@ function AdvanceStepDialog({
   transactionId: string;
   step: O2CStep;
   step1Doc: EdiDoc | null;
+  step3Doc: EdiDoc | null;
   companies: Company[];
   onClose: () => void;
   onSuccess: () => void;
@@ -474,6 +404,14 @@ function AdvanceStepDialog({
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-8)}`);
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
   const [paymentTerms, setPaymentTerms] = useState((step1Doc as EdiDoc | null)?.paymentTerms ?? "");
+  // Step 7: ASN fields — pre-fill from prior docs where possible
+  const [asnShipDate, setAsnShipDate] = useState(step1Doc?.shipDate ?? "");
+  const [asnCarrierName, setAsnCarrierName] = useState(step3Doc?.equipmentType ?? "");
+  const [asnProNumber, setAsnProNumber] = useState("");
+  const [asnTrackingNumber, setAsnTrackingNumber] = useState("");
+  const [asnPackageCount, setAsnPackageCount] = useState("");
+  const [asnWeight, setAsnWeight] = useState("");
+  const [asnWeightUOM, setAsnWeightUOM] = useState("KG");
 
   const partnerCompanies = companies.filter(c => !(/sermacrops/i.test(c.name ?? "")));
 
@@ -519,6 +457,15 @@ function AdvanceStepDialog({
     if (step.step === 5) {
       body.supplierCompanyId = supplierCompanyId;
       if (supplierPoNumber) body.supplierPoNumber = supplierPoNumber;
+    }
+    if (step.step === 7) {
+      if (asnShipDate) body.shipDate = asnShipDate;
+      if (asnCarrierName) body.carrierName = asnCarrierName;
+      if (asnProNumber) body.proNumber = asnProNumber;
+      if (asnTrackingNumber) body.trackingNumber = asnTrackingNumber;
+      if (asnPackageCount) body.packageCount = Number(asnPackageCount);
+      if (asnWeight) body.weight = Number(asnWeight);
+      body.weightUOM = asnWeightUOM;
     }
     if (step.step === 8) {
       body.invoiceNumber = invoiceNumber;
@@ -674,6 +621,104 @@ function AdvanceStepDialog({
             </>
           )}
 
+          {/* Step 7: Ship Notice (ASN) */}
+          {step.step === 7 && (
+            <>
+              {step3Doc && (
+                <div className="bg-muted/40 rounded-lg p-3 space-y-1.5 border border-border">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-2">
+                    Inherited from Load Tender
+                  </p>
+                  {step3Doc.equipmentType && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Equipment Type</span>
+                      <span className="font-semibold">{step3Doc.equipmentType}</span>
+                    </div>
+                  )}
+                  {step3Doc.specialInstructions && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Special Instructions</span>
+                      <span className="font-semibold">{step3Doc.specialInstructions}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Ship Date</Label>
+                  <Input
+                    type="date"
+                    value={asnShipDate}
+                    onChange={e => setAsnShipDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Weight UOM</Label>
+                  <Select value={asnWeightUOM} onValueChange={setAsnWeightUOM}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="KG">KG</SelectItem>
+                      <SelectItem value="LB">LB</SelectItem>
+                      <SelectItem value="MT">MT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Carrier Name</Label>
+                <Input
+                  placeholder="e.g. DHL, FedEx, LBC"
+                  value={asnCarrierName}
+                  onChange={e => setAsnCarrierName(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>PRO Number</Label>
+                  <Input
+                    placeholder="Carrier PRO #"
+                    value={asnProNumber}
+                    onChange={e => setAsnProNumber(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tracking Number</Label>
+                  <Input
+                    placeholder="Tracking #"
+                    value={asnTrackingNumber}
+                    onChange={e => setAsnTrackingNumber(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Package Count</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="# of packages"
+                    value={asnPackageCount}
+                    onChange={e => setAsnPackageCount(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Weight</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Total weight"
+                    value={asnWeight}
+                    onChange={e => setAsnWeight(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                PO number and line items are automatically carried over from the purchase order.
+              </p>
+            </>
+          )}
+
           {/* Step 8: Invoice */}
           {step.step === 8 && (
             <>
@@ -739,6 +784,7 @@ function TransactionDetail({
   const { data: companies = [] } = useListCompanies();
   const documents = (detail.documents ?? []) as EdiDoc[];
   const step1Doc = documents.find(d => d.documentType === "850" && d.direction === "inbound") ?? null;
+  const step3Doc = documents.find(d => d.documentType === "204" && d.direction === "outbound") ?? null;
   const skippedSteps = new Set<number>(((detail as Record<string, unknown>).skippedSteps as number[] | undefined) ?? []);
 
   function handleAdvanceSuccess() {
@@ -762,29 +808,6 @@ function TransactionDetail({
       queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
     },
     onError: () => toast({ title: "Failed to skip step", variant: "destructive" }),
-  });
-
-  const { mutate: forwardASN, isPending: isForwardingASN } = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/transactions/${detail.id}/advance-step`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: 7 }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error ?? "Failed to forward ASN");
-      }
-      return res.json() as Promise<{ success: boolean; sendResult: { success: boolean; message: string } }>;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: data.sendResult.success ? "ASN forwarded to customer" : "ASN created",
-        description: data.sendResult.message,
-      });
-      handleAdvanceSuccess();
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -845,9 +868,7 @@ function TransactionDetail({
           documents={documents}
           onAdvance={setActiveStep}
           onSkip={stepNum => skipStep(stepNum)}
-          onForwardASN={() => forwardASN()}
           skippedSteps={skippedSteps}
-          isForwardingASN={isForwardingASN}
           isSkippingStep={isSkippingStep}
         />
       </div>
@@ -858,6 +879,7 @@ function TransactionDetail({
           transactionId={detail.id}
           step={activeStep}
           step1Doc={step1Doc}
+          step3Doc={step3Doc}
           companies={companies}
           onClose={() => setActiveStep(null)}
           onSuccess={handleAdvanceSuccess}
