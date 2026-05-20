@@ -178,32 +178,13 @@ export function parseX12ToDocumentData(
     }
   }
 
-  const senderQuals: Record<string, string[]> = {
-    "850": ["SE", "SU"], "855": ["SE"], "856": ["SF", "SE"],
-    "810": ["SE"], "204": ["SH", "SE"], "990": ["SH", "SE"],
-  };
-  const receiverQuals: Record<string, string[]> = {
-    "850": ["BY", "ST"], "855": ["BY"], "856": ["ST", "BY"],
-    "810": ["BT", "BY"], "204": ["CN", "BY"], "990": ["CN", "BY"],
-  };
-
-  let senderInfo = null;
-  for (const q of senderQuals[docType] ?? []) {
-    senderInfo = findN1Loop(segs, q);
-    if (senderInfo) break;
-  }
-  let receiverInfo = null;
-  for (const q of receiverQuals[docType] ?? []) {
-    receiverInfo = findN1Loop(segs, q);
-    if (receiverInfo) break;
-  }
-
-  // Parse ISA IDs as last-resort fallback when N1 segments and API names are both missing
+  // Use ISA IDs as last-resort fallback — never use N1 business-role qualifiers (SE/BY/BT/etc.)
+  // for sender/receiver, because those represent transaction roles (seller/buyer), not EDI
+  // communication direction. The API values (opts) are authoritative; ISA IDs are the fallback.
   const { senderId: isaSenderId, receiverId: isaReceiverId } = parseIsaIds(segs);
 
-  const senderName = senderInfo?.name || opts.senderName || isaSenderId || null;
-  // On inbound, SERMACROPS is always the receiver — use ISA receiver ID or hardcode as final fallback
-  const receiverName = receiverInfo?.name || opts.receiverName || isaReceiverId || null;
+  const senderName = opts.senderName || isaSenderId || null;
+  const receiverName = opts.receiverName || isaReceiverId || null;
 
   if (totalAmount == null && lineItems.length > 0 && lineItems.some(li => li.unitPrice > 0)) {
     totalAmount = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
