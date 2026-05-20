@@ -24,7 +24,7 @@ import {
   ArrowLeftRight, ChevronDown, ChevronUp, Plus,
   CheckCircle2, XCircle, Clock, Circle, ArrowRight, Send,
   ShoppingCart, FileCheck, Truck, CheckSquare, Package, Receipt, Trash2,
-  Hourglass, MinusCircle, ChevronsRight,
+  Hourglass, MinusCircle, ChevronsRight, Loader2,
 } from "lucide-react";
 
 // ─── Order-to-Cash step definitions ──────────────────────────────────────────
@@ -182,6 +182,7 @@ function O2CFlowStepper({
   onForwardASN,
   skippedSteps,
   isForwardingASN = false,
+  isSkippingStep = false,
 }: {
   documents: EdiDoc[];
   onAdvance: (step: O2CStep) => void;
@@ -189,6 +190,7 @@ function O2CFlowStepper({
   onForwardASN: () => void;
   skippedSteps: Set<number>;
   isForwardingASN?: boolean;
+  isSkippingStep?: boolean;
 }) {
   const completedCount = O2C_STEPS.filter(s => {
     if (skippedSteps.has(s.step)) return true;
@@ -391,9 +393,13 @@ function O2CFlowStepper({
                     <div className="mt-2 pt-2 border-t border-border/40">
                       <button
                         onClick={() => onSkip(step.step)}
-                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        disabled={isSkippingStep}
+                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <ChevronsRight className="w-3 h-3" /> Skip this step
+                        {isSkippingStep
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <ChevronsRight className="w-3 h-3" />}
+                        Skip this step
                       </button>
                     </div>
                   )}
@@ -740,7 +746,7 @@ function TransactionDetail({
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
   }
 
-  const { mutate: skipStep } = useMutation({
+  const { mutate: skipStep, isPending: isSkippingStep } = useMutation({
     mutationFn: async (stepNum: number) => {
       const updated = [...skippedSteps, stepNum];
       const res = await fetch(`/api/transactions/${detail.id}`, {
@@ -842,6 +848,7 @@ function TransactionDetail({
           onForwardASN={() => forwardASN()}
           skippedSteps={skippedSteps}
           isForwardingASN={isForwardingASN}
+          isSkippingStep={isSkippingStep}
         />
       </div>
 
@@ -974,7 +981,7 @@ export default function Transactions() {
     query: { queryKey: getListTransactionsQueryKey(params) },
   });
 
-  const { data: detail } = useGetTransaction(selectedId!, {
+  const { data: detail, isLoading: isDetailLoading } = useGetTransaction(selectedId!, {
     query: { enabled: !!selectedId, queryKey: getGetTransactionQueryKey(selectedId!) },
   });
 
@@ -1089,6 +1096,26 @@ export default function Transactions() {
             onStatusChange={handleStatusChange}
             onDelete={handleDeleteTx}
           />
+        ) : selectedId && isDetailLoading ? (
+          <div className="p-4 sm:p-6 space-y-5 animate-pulse">
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-2 flex-1">
+                <div className="h-6 bg-muted rounded w-40" />
+                <div className="h-4 bg-muted rounded w-56" />
+              </div>
+              <div className="h-6 bg-muted rounded w-24" />
+            </div>
+            <div className="h-8 bg-muted rounded w-40" />
+            <div className="bg-card border border-card-border rounded-lg p-4 sm:p-5 space-y-4">
+              <div className="h-3 bg-muted rounded w-32" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-muted shrink-0 mt-1" />
+                  <div className="flex-1 h-20 bg-muted rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
             <div className="text-center space-y-2">
