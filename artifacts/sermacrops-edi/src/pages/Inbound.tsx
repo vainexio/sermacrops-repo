@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useListInboundMessages, getListInboundMessagesQueryKey, useReceiveInbound, useListPartnerEndpoints } from "@workspace/api-client-react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useListInboundMessages, getListInboundMessagesQueryKey, useReceiveInbound, useListPartnerEndpoints, useDeleteInboundMessage } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge from "@/components/DocTypeBadge";
 import { EdiDocumentCard } from "@/components/EdiDocumentCard";
@@ -67,18 +67,16 @@ export default function Inbound() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { mutate: deleteMsg, isPending: isDeleting } = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/inbound-messages/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete message");
+  const { mutate: deleteMsg, isPending: isDeleting } = useDeleteInboundMessage({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListInboundMessagesQueryKey() });
+        setSelected(null);
+        setConfirmDelete(false);
+        toast({ title: "Message deleted" });
+      },
+      onError: () => toast({ title: "Failed to delete message", variant: "destructive" }),
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getListInboundMessagesQueryKey() });
-      setSelected(null);
-      setConfirmDelete(false);
-      toast({ title: "Message deleted" });
-    },
-    onError: () => toast({ title: "Failed to delete message", variant: "destructive" }),
   });
 
   // Find SERMACROPS's own inbound endpoint to know what auth partners must send
@@ -372,7 +370,7 @@ export default function Inbound() {
                 {confirmDelete ? (
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground">Delete this message?</span>
-                    <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={isDeleting} onClick={() => deleteMsg(selectedMsg.id)}>
+                    <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={isDeleting} onClick={() => deleteMsg({ id: selectedMsg.id })}>
                       {isDeleting ? "Deleting…" : "Confirm"}
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setConfirmDelete(false)}>

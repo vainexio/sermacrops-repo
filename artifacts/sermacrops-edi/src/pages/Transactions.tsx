@@ -5,6 +5,7 @@ import {
   useGetTransaction, getGetTransactionQueryKey, getListEdiDocumentsQueryKey,
   useCreateTransaction,
   useUpdateTransaction,
+  useDeleteTransaction,
   useListCompanies,
   useListEdiDocuments,
   updateEdiDocument,
@@ -581,17 +582,15 @@ export default function Transactions() {
     },
   });
 
-  const { mutate: deleteTx } = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/transactions/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete transaction");
+  const { mutate: deleteTx } = useDeleteTransaction({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(params) });
+        setSelectedId(null);
+        toast({ title: "Transaction deleted" });
+      },
+      onError: () => toast({ title: "Failed to delete transaction", variant: "destructive" }),
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(params) });
-      setSelectedId(null);
-      toast({ title: "Transaction deleted" });
-    },
-    onError: () => toast({ title: "Failed to delete transaction", variant: "destructive" }),
   });
 
   function toggle(id: string) {
@@ -605,7 +604,7 @@ export default function Transactions() {
 
   function handleDeleteTx() {
     if (!selectedId) return;
-    deleteTx(selectedId);
+    deleteTx({ id: selectedId });
   }
 
   return (

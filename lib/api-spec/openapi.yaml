@@ -386,6 +386,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InboundMessage"
+    delete:
+      operationId: deleteInboundMessage
+      tags: [inbound]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
 
   /transactions:
     get:
@@ -465,6 +477,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Transaction"
+    delete:
+      operationId: deleteTransaction
+      tags: [transactions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
 
   /dashboard/summary:
     get:

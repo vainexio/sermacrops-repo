@@ -400,6 +400,11 @@ export const GetInboundMessageResponse = zod.object({
 })
 
 
+export const DeleteInboundMessageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
 export const ListTransactionsQueryParams = zod.object({
   "status": zod.coerce.string().optional(),
   "companyId": zod.coerce.string().optional()
@@ -552,6 +557,11 @@ export const UpdateTransactionResponse = zod.object({
 })).optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
+})
+
+
+export const DeleteTransactionParams = zod.object({
+  "id": zod.coerce.string()
 })
 
 

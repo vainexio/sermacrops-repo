@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useListEdiDocuments, getListEdiDocumentsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useListEdiDocuments, getListEdiDocumentsQueryKey, useDeleteEdiDocument } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge from "@/components/DocTypeBadge";
@@ -23,18 +23,16 @@ export default function Documents() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { mutate: deleteDoc, isPending: isDeleting } = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/edi-documents/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete document");
+  const { mutate: deleteDoc, isPending: isDeleting } = useDeleteEdiDocument({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey({}) });
+        setSelected(null);
+        setConfirmDelete(false);
+        toast({ title: "Document deleted" });
+      },
+      onError: () => toast({ title: "Failed to delete document", variant: "destructive" }),
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getListEdiDocumentsQueryKey({}) });
-      setSelected(null);
-      setConfirmDelete(false);
-      toast({ title: "Document deleted" });
-    },
-    onError: () => toast({ title: "Failed to delete document", variant: "destructive" }),
   });
 
   const params = {
@@ -192,7 +190,7 @@ export default function Documents() {
                     variant="destructive"
                     className="h-7 text-xs"
                     disabled={isDeleting}
-                    onClick={() => deleteDoc(selectedDoc.id)}
+                    onClick={() => deleteDoc({ id: selectedDoc.id })}
                   >
                     {isDeleting ? "Deleting…" : "Confirm"}
                   </Button>
