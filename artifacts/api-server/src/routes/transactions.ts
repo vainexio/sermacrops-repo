@@ -175,7 +175,7 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
       };
       break;
     }
-    case 7: {
+    case 9: {
       if (!step1) { res.status(400).json({ error: "Inbound 850 not found" }); return; }
       const step3 = docs.find(d => d.documentType === "204" && d.direction === "outbound");
       fields = {
@@ -197,7 +197,7 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
       };
       break;
     }
-    case 8: {
+    case 10: {
       if (!step1) { res.status(400).json({ error: "Inbound 850 not found" }); return; }
       fields = {
         documentType: "810", direction: "outbound",

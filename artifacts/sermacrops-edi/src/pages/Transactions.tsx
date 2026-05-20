@@ -67,13 +67,25 @@ const O2C_STEPS = [
     Icon: FileCheck,
   },
   {
-    step: 7, ediType: "856", direction: "outbound" as const,
+    step: 7, ediType: "856", direction: "inbound" as const,
+    label: "Ship Notice (ASN)", from: "Supplier", to: "SERMACROPS",
+    description: "Supplier sends advance ship notice",
+    Icon: Package,
+  },
+  {
+    step: 8, ediType: "810", direction: "inbound" as const,
+    label: "Invoice", from: "Supplier", to: "SERMACROPS",
+    description: "Supplier sends invoice",
+    Icon: Receipt,
+  },
+  {
+    step: 9, ediType: "856", direction: "outbound" as const,
     label: "Ship Notice (ASN)", from: "SERMACROPS", to: "Customer",
     description: "Send ship notice to customer",
     Icon: Package,
   },
   {
-    step: 8, ediType: "810", direction: "outbound" as const,
+    step: 10, ediType: "810", direction: "outbound" as const,
     label: "Invoice", from: "SERMACROPS", to: "Customer",
     description: "Send invoice for payment",
     Icon: Receipt,
@@ -479,7 +491,7 @@ function AdvanceStepDialog({
         body.totalAmount = validItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
       }
     }
-    if (step.step === 7) {
+    if (step.step === 9) {
       if (asnShipDate) body.shipDate = asnShipDate;
       if (asnCarrierName) body.carrierName = asnCarrierName;
       if (asnProNumber) body.proNumber = asnProNumber;
@@ -488,7 +500,7 @@ function AdvanceStepDialog({
       if (asnWeight) body.weight = Number(asnWeight);
       body.weightUOM = asnWeightUOM;
     }
-    if (step.step === 8) {
+    if (step.step === 10) {
       body.invoiceNumber = invoiceNumber;
       if (invoiceDueDate) body.invoiceDueDate = invoiceDueDate;
       if (paymentTerms) body.paymentTerms = paymentTerms;
@@ -706,8 +718,8 @@ function AdvanceStepDialog({
             </>
           )}
 
-          {/* Step 7: Ship Notice (ASN) */}
-          {step.step === 7 && (
+          {/* Step 9: Ship Notice (ASN) — SERMACROPS → Customer */}
+          {step.step === 9 && (
             <>
               {step3Doc && (
                 <div className="bg-muted/40 rounded-lg p-3 space-y-1.5 border border-border">
@@ -804,8 +816,8 @@ function AdvanceStepDialog({
             </>
           )}
 
-          {/* Step 8: Invoice */}
-          {step.step === 8 && (
+          {/* Step 10: Invoice — SERMACROPS → Customer */}
+          {step.step === 10 && (
             <>
               <div className="space-y-1.5">
                 <Label>Invoice Number</Label>
