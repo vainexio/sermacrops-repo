@@ -16,6 +16,16 @@ function findAllSegs(segs: string[][], id: string): string[][] {
   return segs.filter(s => s[0] === id);
 }
 
+function parseIsaIds(segs: string[][]): { senderId?: string; receiverId?: string } {
+  const isa = segs.find(s => s[0] === "ISA");
+  if (!isa) return {};
+  // ISA fields (0-indexed): [0]=ISA [1]=authQual [2]=authInfo [3]=secQual [4]=secInfo
+  // [5]=senderQual [6]=senderId [7]=receiverQual [8]=receiverId
+  const senderId = isa[6]?.trim() || undefined;
+  const receiverId = isa[8]?.trim() || undefined;
+  return { senderId, receiverId };
+}
+
 function findN1Loop(segs: string[][], qualifier: string): {
   name?: string; addr1?: string; addr2?: string;
   city?: string; state?: string; zip?: string;
@@ -188,8 +198,12 @@ export function parseX12ToDocumentData(
     if (receiverInfo) break;
   }
 
-  const senderName = senderInfo?.name || opts.senderName || null;
-  const receiverName = receiverInfo?.name || opts.receiverName || null;
+  // Parse ISA IDs as last-resort fallback when N1 segments and API names are both missing
+  const { senderId: isaSenderId, receiverId: isaReceiverId } = parseIsaIds(segs);
+
+  const senderName = senderInfo?.name || opts.senderName || isaSenderId || null;
+  // On inbound, SERMACROPS is always the receiver — use ISA receiver ID or hardcode as final fallback
+  const receiverName = receiverInfo?.name || opts.receiverName || isaReceiverId || null;
 
   if (totalAmount == null && lineItems.length > 0 && lineItems.some(li => li.unitPrice > 0)) {
     totalAmount = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);

@@ -45,13 +45,15 @@ async function fmtMsg(m: InstanceType<typeof InboundMessage>) {
     o.senderId ? Company.findById(o.senderId).lean() : null,
     o.receiverId ? Company.findById(o.receiverId).lean() : null,
   ]);
+  // Fall back to ISA IDs when company lookup fails (e.g. unregistered partner)
+  const { sender: isaSender, receiver: isaReceiver } = parseX12SenderReceiver(o.rawPayload ?? "");
   return {
     id: o._id.toString(),
     documentType: o.documentType ?? null,
     senderId: o.senderId?.toString() ?? null,
-    senderName: sender?.name ?? null,
+    senderName: sender?.name ?? isaSender ?? null,
     receiverId: o.receiverId?.toString() ?? null,
-    receiverName: receiver?.name ?? null,
+    receiverName: receiver?.name ?? isaReceiver ?? null,
     rawPayload: o.rawPayload,
     parsedData: o.parsedData ?? null,
     status: o.status,
