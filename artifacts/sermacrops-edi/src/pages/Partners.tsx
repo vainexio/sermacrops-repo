@@ -200,7 +200,7 @@ export default function Partners() {
                 <FormField control={form.control} name="apiKey" render={({ field }) => (
                   <FormItem>
                     <FormLabel>API Key</FormLabel>
-                    <FormControl><Input data-testid="input-ep-apikey" type="password" placeholder="sk-..." {...field} /></FormControl>
+                    <FormControl><Input data-testid="input-ep-apikey" placeholder="sk-..." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

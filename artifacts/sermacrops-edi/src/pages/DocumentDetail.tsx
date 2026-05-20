@@ -6,6 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import StatusBadge from "@/components/StatusBadge";
 import DocTypeBadge, { docTypeLabel } from "@/components/DocTypeBadge";
+import { EdiDocumentCard } from "@/components/EdiDocumentCard";
+import type { EdiDocumentData } from "@/components/EdiDocumentCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Send, Trash2, RefreshCw, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
@@ -70,8 +72,6 @@ export default function DocumentDetail() {
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
   if (!doc) return <div className="p-8 text-center text-muted-foreground">Document not found</div>;
 
-  const lineItems = (() => { try { return doc.lineItems ? JSON.parse(doc.lineItems) : []; } catch { return []; } })();
-
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
       {/* Header */}
@@ -105,7 +105,7 @@ export default function DocumentDetail() {
         </div>
       </div>
 
-      {/* Request Preview Panel */}
+      {/* Outbound Request Preview Panel */}
       {lastRequestInfo && (
         <div className="bg-card border border-card-border rounded-lg overflow-hidden">
           <button
@@ -151,92 +151,46 @@ export default function DocumentDetail() {
         </div>
       )}
 
+      {/* EDI Document Card — formatted document view */}
+      <EdiDocumentCard doc={doc as unknown as EdiDocumentData} />
+
+      {/* Bottom two-column: Delivery Status + X12 Content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Document fields */}
-        <div className="space-y-5">
-          {/* Summary */}
-          <div className="bg-card border border-card-border rounded-lg p-5">
-            <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-4">Summary</h2>
-            <dl className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Sender", value: doc.senderName },
-                { label: "Receiver", value: doc.receiverName },
-                { label: "Reference #", value: doc.referenceNumber },
-                { label: "PO Number", value: doc.poNumber },
-                { label: "Ship Date", value: doc.shipDate },
-                { label: "Delivery Date", value: doc.deliveryDate },
-                { label: "Payment Terms", value: doc.paymentTerms },
-                { label: "Total Amount", value: doc.totalAmount != null ? `$${doc.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : null },
-              ].map(({ label, value }) => value ? (
-                <div key={label}>
-                  <dt className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</dt>
-                  <dd className="text-sm font-medium text-foreground mt-0.5">{value}</dd>
-                </div>
-              ) : null)}
-            </dl>
-          </div>
-
-          {/* Delivery status */}
-          <div className="bg-card border border-card-border rounded-lg p-5">
-            <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-4">Delivery Status</h2>
-            <dl className="space-y-2">
-              {[
-                { label: "Status", value: <StatusBadge status={doc.status} /> },
-                { label: "Retry Count", value: String(doc.retryCount) },
-                { label: "Sent At", value: doc.sentAt ? new Date(doc.sentAt).toLocaleString() : "—" },
-                { label: "Delivered At", value: doc.deliveredAt ? new Date(doc.deliveredAt).toLocaleString() : "—" },
-                { label: "Response Code", value: doc.lastResponseCode ? `HTTP ${doc.lastResponseCode}` : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex items-center justify-between py-1 border-b border-border last:border-0">
-                  <dt className="text-xs text-muted-foreground">{label}</dt>
-                  <dd className="text-xs font-medium text-foreground">{value}</dd>
-                </div>
-              ))}
-              {doc.lastResponseBody && (
-                <div className="mt-2">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Partner Response</p>
-                  <pre className={`text-xs font-mono rounded p-2 whitespace-pre-wrap break-all ${doc.status === "failed" || doc.status === "retry_pending" ? "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300" : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"}`}>{(() => { try { return JSON.stringify(JSON.parse(doc.lastResponseBody), null, 2); } catch { return doc.lastResponseBody; } })()}</pre>
-                </div>
-              )}
-            </dl>
-          </div>
-
-          {/* Line Items */}
-          {lineItems.length > 0 && (
-            <div className="bg-card border border-card-border rounded-lg p-5">
-              <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-3">Line Items</h2>
-              <div className="overflow-x-auto -mx-5 px-5">
-                <table className="w-full text-sm min-w-[420px]">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left pb-2 text-xs text-muted-foreground font-medium">Description</th>
-                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Qty</th>
-                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">UOM</th>
-                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Price</th>
-                      <th className="text-right pb-2 text-xs text-muted-foreground font-medium">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lineItems.map((item: { description: string; quantity: number; uom?: string; unitPrice: number }, i: number) => (
-                      <tr key={i} data-testid={`line-item-row-${i}`} className="border-b border-border last:border-0">
-                        <td className="py-2 text-foreground">{item.description}</td>
-                        <td className="py-2 text-right text-foreground">{item.quantity}</td>
-                        <td className="py-2 text-right text-muted-foreground">{item.uom ?? "EA"}</td>
-                        <td className="py-2 text-right text-foreground">${item.unitPrice.toFixed(2)}</td>
-                        <td className="py-2 text-right font-semibold text-foreground">${(item.quantity * item.unitPrice).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* Delivery Status */}
+        <div className="bg-card border border-card-border rounded-lg p-5">
+          <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-4">Delivery Status</h2>
+          <dl className="space-y-2">
+            {[
+              { label: "Status", value: <StatusBadge status={doc.status} /> },
+              { label: "Retry Count", value: String(doc.retryCount) },
+              { label: "Sent At", value: doc.sentAt ? new Date(doc.sentAt).toLocaleString() : "—" },
+              { label: "Delivered At", value: doc.deliveredAt ? new Date(doc.deliveredAt).toLocaleString() : "—" },
+              { label: "Response Code", value: doc.lastResponseCode ? `HTTP ${doc.lastResponseCode}` : "—" },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between py-1 border-b border-border last:border-0">
+                <dt className="text-xs text-muted-foreground">{label}</dt>
+                <dd className="text-xs font-medium text-foreground">{value}</dd>
               </div>
-            </div>
-          )}
+            ))}
+            {doc.lastResponseBody && (
+              <div className="mt-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Partner Response</p>
+                <pre className={`text-xs font-mono rounded p-2 whitespace-pre-wrap break-all ${
+                  doc.status === "failed" || doc.status === "retry_pending"
+                    ? "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300"
+                    : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                }`}>
+                  {(() => { try { return JSON.stringify(JSON.parse(doc.lastResponseBody), null, 2); } catch { return doc.lastResponseBody; } })()}
+                </pre>
+              </div>
+            )}
+          </dl>
         </div>
 
-        {/* X12 Preview */}
+        {/* X12 EDI Content */}
         <div className="bg-card border border-card-border rounded-lg p-5 h-fit">
           <h2 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-3">X12 EDI Content</h2>
-          <pre className="text-[11px] font-mono text-foreground bg-muted/60 rounded p-4 overflow-x-auto whitespace-pre-wrap max-h-[600px] border border-border">
+          <pre className="text-[11px] font-mono text-foreground bg-muted/60 rounded p-4 overflow-x-auto whitespace-pre-wrap max-h-[500px] border border-border">
             {preview?.content ?? doc.x12Content ?? "No X12 content available"}
           </pre>
         </div>

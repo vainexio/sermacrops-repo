@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useListInboundMessages, getListInboundMessagesQueryKey, useReceiveInbound, useListPartnerEndpoints } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import StatusBadge from "@/components/StatusBadge";
-import DocTypeBadge from "@/components/DocTypeBadge";
+import DocTypeBadge, { docTypeLabel } from "@/components/DocTypeBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,7 +59,7 @@ export default function Inbound() {
   const [selected, setSelected] = useState<string | null>(null);
   const [rawInput, setRawInput] = useState("");
   const [showSubmit, setShowSubmit] = useState(false);
-  const [showEndpointInfo, setShowEndpointInfo] = useState(true);
+  const [showEndpointInfo, setShowEndpointInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<"json" | "raw">("json");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -330,51 +330,96 @@ export default function Inbound() {
       <div className="flex-1 hidden lg:block overflow-y-auto">
         {selectedMsg ? (
           <div className="p-6 space-y-5">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                {selectedMsg.documentType && <DocTypeBadge type={selectedMsg.documentType} />}
-                <StatusBadge status={selectedMsg.status} />
-              </div>
-              <h2 className="text-lg font-bold text-foreground">Inbound Message</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Sender", value: selectedMsg.senderName },
-                { label: "Receiver", value: selectedMsg.receiverName },
-                { label: "Control #", value: selectedMsg.controlNumber },
-                { label: "Received", value: new Date(selectedMsg.createdAt).toLocaleString() },
-                { label: "Processed", value: selectedMsg.processedAt ? new Date(selectedMsg.processedAt).toLocaleString() : null },
-              ].map(({ label, value }) => value ? (
-                <div key={label} className="bg-muted/40 rounded p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">{value}</p>
+
+            {/* Document card */}
+            <div className="border border-border rounded-lg overflow-hidden bg-card text-sm">
+              {/* Header */}
+              <div className="bg-muted/30 border-b border-border px-6 py-4 flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {selectedMsg.documentType && <DocTypeBadge type={selectedMsg.documentType} />}
+                    <StatusBadge status={selectedMsg.status} />
+                    <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">inbound</span>
+                  </div>
+                  <h2 className="text-base font-bold text-foreground">
+                    {selectedMsg.documentType ? docTypeLabel(selectedMsg.documentType) : "EDI Message"}
+                  </h2>
                 </div>
-              ) : null)}
-            </div>
-            {selectedMsg.validationErrors && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-4">
-                <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">Validation Errors</p>
-                {(() => { try { return JSON.parse(selectedMsg.validationErrors); } catch { return [selectedMsg.validationErrors]; } })().map((e: string, i: number) => (
-                  <p key={i} className="text-xs text-red-600 dark:text-red-400">• {e}</p>
-                ))}
+                <div className="text-right shrink-0">
+                  {selectedMsg.controlNumber && (
+                    <p className="text-xs text-muted-foreground">
+                      Control # <span className="font-mono font-semibold text-foreground">{selectedMsg.controlNumber}</span>
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">{new Date(selectedMsg.createdAt).toLocaleString()}</p>
+                </div>
               </div>
-            )}
-            {selectedMsg.parsedData && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Parsed Metadata</p>
-                <div className="bg-muted/40 rounded p-3 grid grid-cols-2 gap-2">
-                  {Object.entries((() => { try { return JSON.parse(selectedMsg.parsedData); } catch { return {}; } })()).map(([k, v]) => (
-                    <div key={k}>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{k}</p>
-                      <p className="text-xs font-mono text-foreground">{String(v ?? "—")}</p>
+
+              {/* From / To */}
+              <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
+                <div className="px-5 py-4">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Sender (From)</p>
+                  <p className="font-semibold text-foreground">{selectedMsg.senderName ?? "Unknown"}</p>
+                </div>
+                <div className="px-5 py-4">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Receiver (To)</p>
+                  <p className="font-semibold text-foreground">{selectedMsg.receiverName ?? "Unknown"}</p>
+                </div>
+              </div>
+
+              {/* Timestamps & IDs */}
+              <div className="px-5 py-4 border-b border-border">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-3">Message Details</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                  {[
+                    { label: "Message ID", value: selectedMsg.id },
+                    { label: "Received At", value: new Date(selectedMsg.createdAt).toLocaleString() },
+                    { label: "Processed At", value: selectedMsg.processedAt ? new Date(selectedMsg.processedAt).toLocaleString() : null },
+                  ].filter(f => f.value).map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</p>
+                      <p className="text-sm font-medium text-foreground mt-0.5 break-all">{value}</p>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
+
+              {/* Parsed Metadata */}
+              {selectedMsg.parsedData && (() => {
+                const parsed = (() => { try { return JSON.parse(selectedMsg.parsedData); } catch { return null; } })();
+                if (!parsed || !Object.keys(parsed).length) return null;
+                return (
+                  <div className="px-5 py-4 border-b border-border">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-3">Parsed EDI Metadata</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                      {Object.entries(parsed).map(([k, v]) => (
+                        <div key={k}>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{k.replace(/([A-Z])/g, ' $1').trim()}</p>
+                          <p className="text-sm font-mono font-medium text-foreground mt-0.5">{String(v ?? "—")}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Validation Errors */}
+              {selectedMsg.validationErrors && (
+                <div className="px-5 py-4 border-b border-border bg-red-50/50 dark:bg-red-900/10">
+                  <p className="text-[10px] text-red-700 dark:text-red-400 uppercase tracking-widest font-semibold mb-2">Validation Errors</p>
+                  {(() => { try { return JSON.parse(selectedMsg.validationErrors); } catch { return [selectedMsg.validationErrors]; } })().map((e: string, i: number) => (
+                    <p key={i} className="text-xs text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                      <span className="mt-0.5 shrink-0">•</span>{e}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Raw X12 Payload */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
-              <pre className="text-[11px] font-mono bg-muted/60 rounded p-4 overflow-x-auto whitespace-pre-wrap border border-border max-h-72">
+              <pre className="text-[11px] font-mono bg-[#0f1117] text-green-400 rounded p-4 overflow-x-auto whitespace-pre-wrap border border-border max-h-72 leading-relaxed">
                 {selectedMsg.rawPayload}
               </pre>
             </div>

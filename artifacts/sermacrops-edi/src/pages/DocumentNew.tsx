@@ -130,7 +130,7 @@ export default function DocumentNew() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { documentType: "", direction: "outbound", senderId: "", receiverId: "", lineItems: [], currencyCode: "USD", weightUOM: "LB", ackStatus: "AC", loadResponseCode: "A" },
+    defaultValues: { documentType: "", direction: "outbound", senderId: "", receiverId: "", lineItems: [], currencyCode: "PHP", weightUOM: "LB", ackStatus: "AC", loadResponseCode: "A" },
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lineItems" });

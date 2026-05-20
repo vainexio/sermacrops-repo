@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useListEdiDocuments, getListEdiDocumentsQueryKey } from "@workspace/api-client-react";
 import { Link, useLocation } from "wouter";
 import StatusBadge from "@/components/StatusBadge";
-import DocTypeBadge, { docTypeLabel } from "@/components/DocTypeBadge";
+import DocTypeBadge from "@/components/DocTypeBadge";
+import { EdiDocumentCard } from "@/components/EdiDocumentCard";
+import type { EdiDocumentData } from "@/components/EdiDocumentCard";
 import { Plus, Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -152,18 +154,9 @@ export default function Documents() {
       {/* Right detail panel */}
       <div className="flex-1 hidden lg:flex flex-col overflow-y-auto">
         {selectedDoc ? (
-          <div className="p-6 space-y-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <DocTypeBadge type={selectedDoc.documentType} />
-                  <StatusBadge status={selectedDoc.status} />
-                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${selectedDoc.direction === "outbound" ? "bg-violet-100 text-violet-700" : "bg-cyan-100 text-cyan-700"}`}>
-                    {selectedDoc.direction}
-                  </span>
-                </div>
-                <h2 className="text-lg font-semibold text-foreground">{docTypeLabel(selectedDoc.documentType)}</h2>
-              </div>
+          <div className="p-6 space-y-4">
+            {/* Open Full button */}
+            <div className="flex justify-end">
               <button
                 data-testid="btn-open-full"
                 onClick={() => setLocation(`/documents/${selectedDoc.id}`)}
@@ -173,30 +166,14 @@ export default function Documents() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Sender", value: selectedDoc.senderName },
-                { label: "Receiver", value: selectedDoc.receiverName },
-                { label: "Control #", value: selectedDoc.controlNumber },
-                { label: "Reference #", value: selectedDoc.referenceNumber },
-                { label: "PO Number", value: selectedDoc.poNumber },
-                { label: "Total Amount", value: selectedDoc.totalAmount != null ? `$${selectedDoc.totalAmount.toLocaleString()}` : null },
-                { label: "Ship Date", value: selectedDoc.shipDate },
-                { label: "Delivery Date", value: selectedDoc.deliveryDate },
-                { label: "Payment Terms", value: selectedDoc.paymentTerms },
-                { label: "Retry Count", value: String(selectedDoc.retryCount) },
-              ].map(({ label, value }) => value ? (
-                <div key={label} className="bg-muted/40 rounded p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">{value}</p>
-                </div>
-              ) : null)}
-            </div>
+            {/* Formatted document card */}
+            <EdiDocumentCard doc={selectedDoc as unknown as EdiDocumentData} />
 
+            {/* X12 EDI Preview */}
             {selectedDoc.x12Content && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">X12 EDI Preview</p>
-                <pre className="bg-muted/60 rounded p-4 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap border border-border max-h-72">
+                <pre className="bg-muted/60 rounded p-4 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap border border-border max-h-64">
                   {selectedDoc.x12Content}
                 </pre>
               </div>
