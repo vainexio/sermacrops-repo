@@ -223,7 +223,7 @@ function O2CFlowStepper({
           const { Icon } = step;
           const isSkipped = status === "skipped";
           const isNext = status === "next";
-          const canSkip = (step.step === 5 || step.step === 6) && !doc && !isSkipped;
+          const canSkip = !doc && !isSkipped;
 
           // Step 7 two-phase ASN: inbound from Logistics, then forward to Customer
           const asnInbound = step.step === 7
@@ -386,12 +386,12 @@ function O2CFlowStepper({
                     <p className="text-[11px] text-muted-foreground/60 italic">{step.description}</p>
                   )}
 
-                  {/* Skip option for steps 5 & 6 */}
+                  {/* Skip option */}
                   {canSkip && (
                     <div className="mt-2 pt-2 border-t border-border/40">
                       <button
                         onClick={() => onSkip(step.step)}
-                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       >
                         <ChevronsRight className="w-3 h-3" /> Skip this step
                       </button>
@@ -1049,7 +1049,7 @@ export default function Transactions() {
           {!isLoading && transactions?.length === 0 && (
             <div className="p-8 text-center text-muted-foreground text-sm">
               No transactions yet.{" "}
-              <button className="text-blue-500 hover:underline" onClick={() => setShowCreate(true)}>
+              <button className="text-blue-500 hover:underline cursor-pointer" onClick={() => setShowCreate(true)}>
                 Create one
               </button>
               <p className="mt-2 text-xs">Or create an inbound EDI 850 document — a transaction will be created automatically.</p>
@@ -1061,7 +1061,7 @@ export default function Transactions() {
               <div key={tx.id}>
                 <button
                   onClick={() => toggle(tx.id)}
-                  className={`w-full text-left p-4 hover:bg-muted/40 transition-colors ${isSelected ? "bg-muted/60" : ""}`}
+                  className={`w-full text-left p-4 hover:bg-muted/40 transition-colors cursor-pointer ${isSelected ? "bg-muted/60" : ""}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <span className="text-sm font-semibold text-foreground truncate">{tx.referenceNumber}</span>
