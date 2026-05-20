@@ -384,18 +384,37 @@ export default function Inbound() {
                 </div>
               </div>
 
-              {/* Parsed Metadata */}
-              {selectedMsg.parsedData && (() => {
-                const parsed = (() => { try { return JSON.parse(selectedMsg.parsedData); } catch { return null; } })();
-                if (!parsed || !Object.keys(parsed).length) return null;
+              {/* Transaction Details */}
+              {(() => {
+                const parsed: Record<string, string | null> = (() => {
+                  try { return selectedMsg.parsedData ? JSON.parse(selectedMsg.parsedData) : {}; }
+                  catch { return {}; }
+                })();
+                const fieldMap: { label: string; value: string | null | undefined }[] = [
+                  { label: "Document Type", value: parsed.docType ?? selectedMsg.documentType },
+                  { label: "Control Number", value: parsed.controlNumber ?? selectedMsg.controlNumber },
+                  { label: "Sender EDI ID", value: parsed.sender },
+                  { label: "Receiver EDI ID", value: parsed.receiver },
+                  { label: "Interchange Date", value: parsed.interchangeDate },
+                  { label: "Interchange Time", value: parsed.interchangeTime },
+                  { label: "Version", value: parsed.version },
+                  { label: "PO Number", value: parsed.poNumber ?? parsed.purchaseOrderNumber },
+                  { label: "Ship Date", value: parsed.shipDate ?? parsed.actualShipDate },
+                  { label: "Delivery Date", value: parsed.deliveryDate ?? parsed.requestedDeliveryDate },
+                  { label: "Currency", value: parsed.currency ?? parsed.currencyCode },
+                  { label: "Total Amount", value: parsed.totalAmount },
+                  { label: "Carrier", value: parsed.carrier ?? parsed.carrierName },
+                  { label: "PRO Number", value: parsed.proNumber ?? parsed.proNum },
+                ].filter(f => f.value != null && String(f.value).trim() !== "");
+                if (!fieldMap.length) return null;
                 return (
                   <div className="px-5 py-4 border-b border-border">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-3">Parsed EDI Metadata</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-3">Transaction Details</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
-                      {Object.entries(parsed).map(([k, v]) => (
-                        <div key={k}>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{k.replace(/([A-Z])/g, ' $1').trim()}</p>
-                          <p className="text-sm font-mono font-medium text-foreground mt-0.5">{String(v ?? "—")}</p>
+                      {fieldMap.map(({ label, value }) => (
+                        <div key={label}>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</p>
+                          <p className="text-sm font-medium text-foreground mt-0.5">{String(value)}</p>
                         </div>
                       ))}
                     </div>
