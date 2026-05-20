@@ -96,17 +96,19 @@ export function EdiDocumentCard({ doc }: { doc: EdiDocumentData }) {
         </div>
       </div>
 
-      {/* From / To */}
-      <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
-        <div className="px-5 py-4">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Sender (From)</p>
-          <p className="font-semibold text-foreground">{doc.senderName ?? "—"}</p>
+      {/* From / To — hidden on inbound (direction is always known) */}
+      {doc.direction !== "inbound" && (
+        <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
+          <div className="px-5 py-4">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Sender (From)</p>
+            <p className="font-semibold text-foreground">{doc.senderName ?? "—"}</p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Receiver (To)</p>
+            <p className="font-semibold text-foreground">{doc.receiverName ?? "—"}</p>
+          </div>
         </div>
-        <div className="px-5 py-4">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-1.5">Receiver (To)</p>
-          <p className="font-semibold text-foreground">{doc.receiverName ?? "—"}</p>
-        </div>
-      </div>
+      )}
 
       {/* Transaction Detail Fields */}
       {detailFields.length > 0 && (
