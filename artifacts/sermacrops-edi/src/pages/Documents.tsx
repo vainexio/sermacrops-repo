@@ -7,7 +7,7 @@ import DocTypeBadge from "@/components/DocTypeBadge";
 import { EdiDocumentCard } from "@/components/EdiDocumentCard";
 import type { EdiDocumentData } from "@/components/EdiDocumentCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,7 @@ export default function Documents() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [selected, setSelected] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showX12, setShowX12] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -145,6 +146,7 @@ export default function Documents() {
                   setLocation(`/documents/${doc.id}`);
                 } else {
                   setSelected(doc.id === selected ? null : doc.id);
+                  setShowX12(false);
                 }
               }}
               className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selected === doc.id ? "bg-muted" : ""}`}
@@ -215,11 +217,19 @@ export default function Documents() {
 
             {/* X12 EDI Preview */}
             {selectedDoc.x12Content && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">X12 EDI Preview</p>
-                <pre className="bg-muted/60 rounded p-4 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap border border-border max-h-64">
-                  {selectedDoc.x12Content}
-                </pre>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setShowX12(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted/70 transition-colors"
+                >
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">X12 EDI Preview</p>
+                  {showX12 ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                </button>
+                {showX12 && (
+                  <pre className="bg-muted/60 p-4 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap border-t border-border max-h-64">
+                    {selectedDoc.x12Content}
+                  </pre>
+                )}
               </div>
             )}
           </div>

@@ -64,6 +64,7 @@ export default function Inbound() {
   const [showEndpointInfo, setShowEndpointInfo] = useState(false);
   const [activeTab, setActiveTab] = useState<"json" | "raw">("json");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showX12, setShowX12] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -287,7 +288,7 @@ export default function Inbound() {
             <div key={msg.id}>
               <button
                 data-testid={`inbound-item-${msg.id}`}
-                onClick={() => setSelected(msg.id === selected ? null : msg.id)}
+                onClick={() => { setSelected(msg.id === selected ? null : msg.id); setShowX12(false); }}
                 className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-start gap-2 ${selected === msg.id ? "bg-muted" : ""}`}
               >
                 <div className="flex-1 min-w-0">
@@ -328,11 +329,19 @@ export default function Inbound() {
                       ))}
                     </div>
                   )}
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
-                    <pre className="text-[11px] font-mono bg-white text-black rounded p-3 overflow-x-auto whitespace-pre-wrap border border-border max-h-48">
-                      {selectedMsg.rawPayload}
-                    </pre>
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setShowX12(v => !v)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted/70 transition-colors"
+                    >
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Raw X12 Payload</p>
+                      {showX12 ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                    </button>
+                    {showX12 && (
+                      <pre className="text-[11px] font-mono bg-white text-black p-3 overflow-x-auto whitespace-pre-wrap border-t border-border max-h-48">
+                        {selectedMsg.rawPayload}
+                      </pre>
+                    )}
                   </div>
                 </div>
               )}
@@ -405,11 +414,19 @@ export default function Inbound() {
               )}
 
               {/* Raw X12 Payload */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Raw X12 Payload</p>
-                <pre className="text-[11px] font-mono bg-white text-black rounded p-4 overflow-x-auto whitespace-pre-wrap border border-border max-h-72 leading-relaxed">
-                  {selectedMsg.rawPayload}
-                </pre>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setShowX12(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted/70 transition-colors"
+                >
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Raw X12 Payload</p>
+                  {showX12 ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                </button>
+                {showX12 && (
+                  <pre className="text-[11px] font-mono bg-white text-black p-4 overflow-x-auto whitespace-pre-wrap border-t border-border max-h-72 leading-relaxed">
+                    {selectedMsg.rawPayload}
+                  </pre>
+                )}
               </div>
             </div>
           );
