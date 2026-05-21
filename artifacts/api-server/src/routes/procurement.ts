@@ -339,7 +339,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         }
       }
 
-      order.currentStep = 4;
+      order.currentStep = 5;
       order.status = "billing";
       await order.save();
 

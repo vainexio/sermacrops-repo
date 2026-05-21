@@ -204,7 +204,7 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
               entityId: procOrder._id.toString(),
               details: JSON.stringify({ step: 4, trigger: "inbound_856", referenceNumber: refKey }),
             });
-          } else if (docType === "810" && procOrder.currentStep === 4) {
+          } else if (docType === "810" && procOrder.currentStep >= 2 && !["billing", "completed"].includes(procOrder.status)) {
             // Update inventory quantities on invoice receipt
             for (const li of procOrder.lineItems) {
               if (li.inventoryItemId) {
@@ -215,13 +215,14 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
                 }
               }
             }
+            procOrder.currentStep = 5;
             procOrder.status = "billing";
             await procOrder.save();
             await AuditLog.create({
               action: "step_advanced",
               entityType: "ProcurementOrder",
               entityId: procOrder._id.toString(),
-              details: JSON.stringify({ step: 4, trigger: "inbound_810", referenceNumber: refKey }),
+              details: JSON.stringify({ step: 5, trigger: "inbound_810", referenceNumber: refKey }),
             });
           }
         }
