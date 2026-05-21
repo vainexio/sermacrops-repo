@@ -259,7 +259,7 @@ function InventoryItemDialog({
   const [name, setName] = useState(item?.name ?? "");
   const [sku, setSku] = useState(item?.sku ?? "");
   const [quantity, setQuantity] = useState(String(item?.quantity ?? "0"));
-  const [unit, setUnit] = useState(item?.unit ?? "pcs");
+  const [unit, setUnit] = useState(item?.unit ?? "ea");
   const [reorderPoint, setReorderPoint] = useState(String(item?.reorderPoint ?? ""));
   const [unitPrice, setUnitPrice] = useState(String(item?.unitPrice ?? ""));
   const [supplierId, setSupplierId] = useState(item?.supplierId ?? "none");
@@ -327,7 +327,7 @@ function InventoryItemDialog({
               <Select value={unit} onValueChange={setUnit}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pcs">pcs</SelectItem>
+                  <SelectItem value="ea">ea</SelectItem>
                   <SelectItem value="kg">kg</SelectItem>
                   <SelectItem value="g">g</SelectItem>
                   <SelectItem value="L">L</SelectItem>
