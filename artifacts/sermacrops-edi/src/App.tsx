@@ -17,7 +17,13 @@ import Inventory from "@/pages/Inventory";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+      refetchInterval: 30_000,
+    },
+  },
 });
 
 function Router() {
