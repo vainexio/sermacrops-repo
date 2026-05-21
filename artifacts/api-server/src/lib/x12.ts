@@ -303,8 +303,9 @@ export function parseX12Fields(payload: string, docType: string): ParsedX12Field
     }
 
     case "855": {
-      // BAK*00*<ackStatus>*<poNumber>*<shipDate>
-      const bak = seg("BAK");
+      // BAK*00*<ackStatus>*<poNumber>*<shipDate> — standard 855 beginning segment
+      // Some partners incorrectly use BEG (850 segment) with the same field layout; fall back to it.
+      const bak = seg("BAK") ?? seg("BEG");
       if (bak) {
         f.ackStatus = bak[1]?.trim() || undefined;
         f.poNumber = bak[2]?.trim() || undefined;

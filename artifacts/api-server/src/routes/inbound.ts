@@ -5,6 +5,7 @@ import { Transaction } from "../models/Transaction";
 import { Company } from "../models/Company";
 import { PartnerEndpoint } from "../models/PartnerEndpoint";
 import { AuditLog } from "../models/AuditLog";
+import { ProcurementOrder } from "../models/ProcurementOrder";
 import { parseX12Type, parseX12ControlNumber, parseX12SenderReceiver, parseX12Fields } from "../lib/x12";
 
 const router: IRouter = Router();
@@ -174,6 +175,43 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
           }
           if (docType === "810") {
             await Transaction.findByIdAndUpdate(tx._id, { status: "completed" });
+          }
+        }
+      }
+
+      // Auto-advance procurement order when inbound 855/856/810 arrives
+      if (refKey && (docType === "855" || docType === "856" || docType === "810")) {
+        const procOrder = await ProcurementOrder.findOne({ referenceNumber: refKey });
+        if (procOrder) {
+          if (docType === "855" && procOrder.currentStep === 2) {
+            procOrder.currentStep = 3;
+            procOrder.status = "acknowledged";
+            await procOrder.save();
+            await AuditLog.create({
+              action: "step_advanced",
+              entityType: "ProcurementOrder",
+              entityId: procOrder._id.toString(),
+              details: JSON.stringify({ step: 3, trigger: "inbound_855", referenceNumber: refKey }),
+            });
+          } else if (docType === "856" && procOrder.currentStep === 3) {
+            procOrder.currentStep = 4;
+            procOrder.status = "received";
+            await procOrder.save();
+            await AuditLog.create({
+              action: "step_advanced",
+              entityType: "ProcurementOrder",
+              entityId: procOrder._id.toString(),
+              details: JSON.stringify({ step: 4, trigger: "inbound_856", referenceNumber: refKey }),
+            });
+          } else if (docType === "810" && procOrder.currentStep === 4) {
+            procOrder.status = "billing";
+            await procOrder.save();
+            await AuditLog.create({
+              action: "step_advanced",
+              entityType: "ProcurementOrder",
+              entityId: procOrder._id.toString(),
+              details: JSON.stringify({ step: 4, trigger: "inbound_810", referenceNumber: refKey }),
+            });
           }
         }
       }
