@@ -6,6 +6,7 @@ import { Company } from "../models/Company";
 import { PartnerEndpoint } from "../models/PartnerEndpoint";
 import { AuditLog } from "../models/AuditLog";
 import { ProcurementOrder } from "../models/ProcurementOrder";
+import { InventoryItem } from "../models/InventoryItem";
 import { parseX12Type, parseX12ControlNumber, parseX12SenderReceiver, parseX12Fields } from "../lib/x12";
 
 const router: IRouter = Router();
@@ -204,6 +205,16 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
               details: JSON.stringify({ step: 4, trigger: "inbound_856", referenceNumber: refKey }),
             });
           } else if (docType === "810" && procOrder.currentStep === 4) {
+            // Update inventory quantities on invoice receipt
+            for (const li of procOrder.lineItems) {
+              if (li.inventoryItemId) {
+                const item = await InventoryItem.findById(li.inventoryItemId);
+                if (item) {
+                  item.quantity += li.quantity;
+                  await item.save();
+                }
+              }
+            }
             procOrder.status = "billing";
             await procOrder.save();
             await AuditLog.create({

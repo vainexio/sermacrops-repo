@@ -156,7 +156,7 @@ type ProcStepStatus = "completed" | "next" | "pending" | "skipped";
 function getProcStepStatus(step: ProcStep, order: ProcurementOrder, index: number): ProcStepStatus {
   const skipped = new Set(order.skippedSteps ?? []);
   if (skipped.has(step.step)) return "skipped";
-  if (order.status === "completed" || step.step < order.currentStep) return "completed";
+  if (order.status === "completed" || order.status === "billing" || step.step < order.currentStep) return "completed";
   if (step.step === order.currentStep) return "next";
   return "pending";
 }
