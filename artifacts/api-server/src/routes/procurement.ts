@@ -152,7 +152,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         status: "ready",
       });
 
-      const x12 = generateX12(doc as never, toCoInfo(sermacrops), toCoInfo(supplier));
+      const x12 = generateX12(doc as never, toCoInfo(sermacrops), toCoInfo(supplier), { senderIsBuyer: true });
       await EdiDocument.findByIdAndUpdate(doc._id, { x12Content: x12 });
 
       await AuditLog.create({
