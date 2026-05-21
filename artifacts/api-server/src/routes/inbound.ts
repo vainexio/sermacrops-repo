@@ -8,6 +8,7 @@ import { AuditLog } from "../models/AuditLog";
 import { ProcurementOrder } from "../models/ProcurementOrder";
 import { InventoryItem } from "../models/InventoryItem";
 import { parseX12Type, parseX12ControlNumber, parseX12SenderReceiver, parseX12Fields } from "../lib/x12";
+import { broadcast } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -104,6 +105,7 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
     controlNumber: controlNumber ?? undefined,
     processedAt: new Date(),
   });
+  broadcast("inbound-message");
 
   // ── Auto-create EdiDocument from the inbound message ──────────────────────
   let documentId: string | null = null;
@@ -144,6 +146,7 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
       });
 
       documentId = doc._id.toString();
+      broadcast("edi-document");
 
       await AuditLog.create({
         action: "received",
@@ -218,6 +221,8 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
             procOrder.currentStep = 5;
             procOrder.status = "billing";
             await procOrder.save();
+            broadcast("procurement");
+            broadcast("inventory");
             await AuditLog.create({
               action: "step_advanced",
               entityType: "ProcurementOrder",

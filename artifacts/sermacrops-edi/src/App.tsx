@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
+import { useSSE } from "@/hooks/useSSE";
 import Dashboard from "@/pages/Dashboard";
 import Documents from "@/pages/Documents";
 import DocumentNew from "@/pages/DocumentNew";
@@ -20,6 +21,7 @@ const queryClient = new QueryClient({
 });
 
 function Router() {
+  useSSE();
   return (
     <Layout>
       <Switch>

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { InventoryItem } from "../models/InventoryItem";
 import { Company } from "../models/Company";
+import { broadcast } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -55,6 +56,7 @@ router.post("/inventory", async (req, res): Promise<void> => {
     name, category, sku, quantity: quantity ?? 0, unit,
     reorderPoint, unitPrice: unitPrice ?? undefined, supplierId: supplierId || undefined, notes,
   });
+  broadcast("inventory");
   res.status(201).json(await fmt(item));
 });
 
@@ -78,12 +80,14 @@ router.patch("/inventory/:id", async (req, res): Promise<void> => {
   if (supplierId !== undefined) item.supplierId = supplierId || undefined;
   if (notes !== undefined) item.notes = notes;
   await item.save();
+  broadcast("inventory");
   res.json(await fmt(item));
 });
 
 router.delete("/inventory/:id", async (req, res): Promise<void> => {
   const item = await InventoryItem.findByIdAndDelete(req.params.id);
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
+  broadcast("inventory");
   res.json({ success: true });
 });
 

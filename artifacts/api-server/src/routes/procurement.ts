@@ -6,6 +6,7 @@ import { EdiDocument } from "../models/EdiDocument";
 import { AuditLog } from "../models/AuditLog";
 import { PartnerEndpoint } from "../models/PartnerEndpoint";
 import { generateX12 } from "../lib/x12";
+import { broadcast } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -158,6 +159,7 @@ router.post("/procurement", async (req, res): Promise<void> => {
     currentStep: 1,
     status: "open",
   });
+  broadcast("procurement");
   res.status(201).json(await fmtOrder(order));
 });
 
@@ -175,6 +177,7 @@ router.patch("/procurement/:id", async (req, res): Promise<void> => {
   if (notes !== undefined) order.notes = notes;
   if (skippedSteps !== undefined) order.skippedSteps = skippedSteps;
   await order.save();
+  broadcast("procurement");
   res.json(await fmtOrder(order));
 });
 
@@ -363,6 +366,8 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
       return;
   }
 
+  broadcast("procurement");
+  if (step === 4) broadcast("inventory");
   res.json({ success: true, sendResult, order: await fmtOrder(order) });
 });
 
