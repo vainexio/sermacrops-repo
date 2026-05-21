@@ -73,6 +73,12 @@ function getGSFunctionId(content: string): string {
 export interface GenerateX12Options {
   /** When true, the sender is the buyer (e.g. SERMACROPS issuing a PO to a supplier). */
   senderIsBuyer?: boolean;
+  /**
+   * 204 only — the actual consignee (delivery recipient).
+   * The envelope receiver is the carrier/logistics company, but CN in the body
+   * should be the party receiving the goods (e.g. the customer who placed the PO).
+   */
+  consignee?: CompanyInfo;
 }
 
 export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: CompanyInfo, options: GenerateX12Options = {}): string {
@@ -191,6 +197,9 @@ export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: Co
       const specialInstr = doc.specialInstructions;
       const weightSegs = doc.weight ? [`AT8*G*${doc.weightUOM ?? "LB"}*${doc.weight}~`] : [];
       const noteSegs = specialInstr ? [`NTE**${specialInstr}~`] : [];
+      // CN = consignee (the actual delivery recipient, e.g. the customer).
+      // Falls back to receiver (carrier) only when no consignee is supplied.
+      const consigneeInfo = options.consignee ?? receiver;
       segs = [
         `ST*204*${stNum}~`,
         `B2**${sender.ediId}**${doc.referenceNumber ?? "LOAD001"}**PP~`,
@@ -203,7 +212,7 @@ export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: Co
         `L3***${equip}~`,
         ...weightSegs,
         ...n1Loop("SH", sender),
-        ...n1Loop("CN", receiver),
+        ...n1Loop("CN", consigneeInfo),
         ...noteSegs,
       ];
       segs.push(`SE*${segCount(segs)}*${stNum}~`);

@@ -199,16 +199,24 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
       return;
   }
 
-  const [senderCo, receiverCo] = await Promise.all([
+  // For 204 (Load Tender), the consignee is the customer who placed the original PO,
+  // not the logistics company (which is the envelope receiver).
+  const consigneeId = fields.documentType === "204" && step1
+    ? step1.senderId.toString()
+    : undefined;
+
+  const [senderCo, receiverCo, consigneeCo] = await Promise.all([
     Company.findById(fields.senderId as string).lean(),
     Company.findById(fields.receiverId as string).lean(),
+    consigneeId ? Company.findById(consigneeId).lean() : Promise.resolve(null),
   ]);
   if (!senderCo || !receiverCo) { res.status(400).json({ error: "Sender or receiver company not found" }); return; }
 
   const cn = nextCN();
   const doc = await EdiDocument.create({ ...fields, controlNumber: cn, transactionId: tx._id, status: "ready" });
 
-  const x12 = generateX12(doc as never, toCoInfo(senderCo), toCoInfo(receiverCo));
+  const x12Options = consigneeCo ? { consignee: toCoInfo(consigneeCo) } : {};
+  const x12 = generateX12(doc as never, toCoInfo(senderCo), toCoInfo(receiverCo), x12Options);
   await EdiDocument.findByIdAndUpdate(doc._id, { x12Content: x12 });
 
   await AuditLog.create({
