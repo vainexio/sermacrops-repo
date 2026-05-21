@@ -20,6 +20,8 @@ function toCoInfo(c: { name?: string; ediId?: string; addressLine1?: string; cit
 async function fmtOrder(order: InstanceType<typeof ProcurementOrder>) {
   const o = order.toObject();
   const supplier = await Company.findById(o.supplierId).lean();
+
+  // Primary EDI doc (step-1 850) — kept for backwards compat
   let ediDoc = null;
   if (o.ediDocumentId) {
     const doc = await EdiDocument.findById(o.ediDocumentId).lean();
@@ -32,6 +34,21 @@ async function fmtOrder(order: InstanceType<typeof ProcurementOrder>) {
       };
     }
   }
+
+  // Per-step EDI docs keyed by document type (e.g. "850", "855", "856", "810")
+  const allDocs = await EdiDocument.find({ referenceNumber: o.referenceNumber }).lean();
+  const stepDocs: Record<string, { id: string; documentType: string; status: string; controlNumber: string }> = {};
+  for (const doc of allDocs) {
+    if (!stepDocs[doc.documentType]) {
+      stepDocs[doc.documentType] = {
+        id: doc._id.toString(),
+        documentType: doc.documentType,
+        status: doc.status,
+        controlNumber: doc.controlNumber ?? "",
+      };
+    }
+  }
+
   return {
     id: o._id.toString(),
     referenceNumber: o.referenceNumber,
@@ -44,14 +61,72 @@ async function fmtOrder(order: InstanceType<typeof ProcurementOrder>) {
     totalValue: o.totalValue ?? null,
     notes: o.notes ?? null,
     ediDoc,
+    stepDocs,
     createdAt: o.createdAt.toISOString(),
     updatedAt: o.updatedAt.toISOString(),
   };
 }
 
 router.get("/procurement", async (_req, res): Promise<void> => {
-  const orders = await ProcurementOrder.find().sort({ createdAt: -1 }).limit(100);
-  res.json(await Promise.all(orders.map(fmtOrder)));
+  const orders = await ProcurementOrder.find().sort({ createdAt: -1 }).limit(100).lean();
+  if (orders.length === 0) { res.json([]); return; }
+
+  // Batch all lookups — 3 queries total regardless of order count
+  const supplierIds = [...new Set(orders.map(o => o.supplierId.toString()))];
+  const refNums = orders.map(o => o.referenceNumber).filter(Boolean);
+  const ediDocIds = orders.map(o => o.ediDocumentId?.toString()).filter(Boolean);
+
+  const [suppliers, allDocs, primaryDocs] = await Promise.all([
+    Company.find({ _id: { $in: supplierIds } }).lean(),
+    EdiDocument.find({ referenceNumber: { $in: refNums } }).lean(),
+    ediDocIds.length ? EdiDocument.find({ _id: { $in: ediDocIds } }).lean() : Promise.resolve([]),
+  ]);
+
+  const supplierMap = new Map(suppliers.map(s => [s._id.toString(), s]));
+  const primaryDocMap = new Map(primaryDocs.map(d => [d._id.toString(), d]));
+
+  // Group docs by referenceNumber, keeping first per documentType
+  const docsByRef = new Map<string, Map<string, typeof allDocs[number]>>();
+  for (const doc of allDocs) {
+    if (!doc.referenceNumber) continue;
+    if (!docsByRef.has(doc.referenceNumber)) docsByRef.set(doc.referenceNumber, new Map());
+    const byType = docsByRef.get(doc.referenceNumber)!;
+    if (!byType.has(doc.documentType)) byType.set(doc.documentType, doc);
+  }
+
+  const result = orders.map(o => {
+    const supplier = supplierMap.get(o.supplierId.toString()) ?? null;
+    const primary = o.ediDocumentId ? primaryDocMap.get(o.ediDocumentId.toString()) ?? null : null;
+    const ediDoc = primary ? {
+      id: primary._id.toString(), documentType: primary.documentType,
+      status: primary.status, controlNumber: primary.controlNumber ?? "",
+    } : null;
+
+    const byType = docsByRef.get(o.referenceNumber) ?? new Map();
+    const stepDocs: Record<string, { id: string; documentType: string; status: string; controlNumber: string }> = {};
+    for (const [docType, doc] of byType) {
+      stepDocs[docType] = { id: doc._id.toString(), documentType: doc.documentType, status: doc.status, controlNumber: doc.controlNumber ?? "" };
+    }
+
+    return {
+      id: o._id.toString(),
+      referenceNumber: o.referenceNumber,
+      status: o.status,
+      supplierId: o.supplierId.toString(),
+      supplierName: supplier?.name ?? null,
+      currentStep: o.currentStep,
+      skippedSteps: o.skippedSteps ?? [],
+      lineItems: o.lineItems ?? [],
+      totalValue: o.totalValue ?? null,
+      notes: o.notes ?? null,
+      ediDoc,
+      stepDocs,
+      createdAt: (o.createdAt as Date).toISOString(),
+      updatedAt: (o.updatedAt as Date).toISOString(),
+    };
+  });
+
+  res.json(result);
 });
 
 router.post("/procurement", async (req, res): Promise<void> => {

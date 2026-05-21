@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Pencil, Trash2, Package, Leaf, ShoppingCart, FileCheck,
   CheckCircle2, Clock, Circle, ArrowRight, Loader2, AlertTriangle,
-  ChevronsRight, MinusCircle, Send, Boxes, FileText,
+  ChevronsRight, MinusCircle, Send, Boxes, FileText, Eye, X,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,6 +40,13 @@ interface ProcLineItem {
   unitPrice?: number;
 }
 
+interface StepDoc {
+  id: string;
+  documentType: string;
+  status: string;
+  controlNumber: string;
+}
+
 interface ProcurementOrder {
   id: string;
   referenceNumber: string;
@@ -51,7 +58,8 @@ interface ProcurementOrder {
   lineItems: ProcLineItem[];
   totalValue?: number | null;
   notes?: string | null;
-  ediDoc?: { id: string; documentType: string; status: string; controlNumber: string } | null;
+  ediDoc?: StepDoc | null;
+  stepDocs?: Record<string, StepDoc>;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +96,47 @@ function LowStockBadge({ quantity, reorderPoint }: { quantity: number; reorderPo
     <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded px-1.5 py-0.5">
       <AlertTriangle className="w-2.5 h-2.5" /> Low Stock
     </span>
+  );
+}
+
+// ─── EDI Document Viewer Dialog ───────────────────────────────────────────────
+
+function EdiDocumentViewerDialog({ docId, onClose }: { docId: string; onClose: () => void }) {
+  const { data, isLoading } = useQuery<{ content: string; documentType: string }>({
+    queryKey: ["edi-doc-preview", docId],
+    queryFn: async () => {
+      const res = await fetch(`${apiBase}/api/edi-documents/${docId}/preview`);
+      if (!res.ok) throw new Error("Failed to load document");
+      return res.json();
+    },
+  });
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogHeader className="shrink-0">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <FileText className="w-4 h-4 text-blue-600" />
+              EDI {data?.documentType ?? "Document"}
+            </DialogTitle>
+          </div>
+        </DialogHeader>
+        <div className="flex-1 overflow-auto min-h-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : data?.content ? (
+            <pre className="text-xs font-mono whitespace-pre-wrap break-all bg-muted/40 rounded-lg p-4 border border-border leading-relaxed text-foreground">
+              {data.content}
+            </pre>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-10">No X12 content available.</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -141,12 +190,14 @@ function ProcurementStepper({
   order,
   onAdvance,
   onSkip,
+  onViewDoc,
   isAdvancing,
   isSkipping,
 }: {
   order: ProcurementOrder;
   onAdvance: (step: number) => void;
   onSkip: (step: number) => void;
+  onViewDoc: (docId: string) => void;
   isAdvancing: boolean;
   isSkipping: boolean;
 }) {
@@ -160,21 +211,23 @@ function ProcurementStepper({
         const { Icon } = step;
         const isNext = status === "next";
         const isSkipped = status === "skipped";
+        const isCompleted = status === "completed";
         const canSkip = isNext && order.status !== "completed";
         const isOutbound = step.direction === "outbound";
+        const stepDoc = order.stepDocs?.[step.docType];
 
         return (
           <div key={step.step} className="flex gap-2.5">
             <div className="flex flex-col items-center">
               <ProcStepCircle status={status} />
               {!isLast && (
-                <div className={`w-0.5 flex-1 my-1 min-h-[1.5rem] rounded-full ${status === "completed" ? "bg-emerald-300" : "bg-border"}`} />
+                <div className={`w-0.5 flex-1 my-1 min-h-[1.5rem] rounded-full ${isCompleted ? "bg-emerald-300" : "bg-border"}`} />
               )}
             </div>
             <div className="flex-1 pb-3">
               <div className={`rounded-lg border p-2.5 transition-colors text-xs ${
                 isSkipped ? "border-border/30 bg-muted/10 opacity-60" :
-                status === "completed" ? "border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 dark:border-emerald-900" :
+                isCompleted ? "border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 dark:border-emerald-900" :
                 isNext && isOutbound ? "border-blue-300 bg-blue-50 dark:bg-blue-950/30 ring-1 ring-blue-200" :
                 isNext ? "border-amber-200 bg-amber-50/50 dark:bg-amber-950/20" :
                 "border-border/40 bg-muted/10"
@@ -183,14 +236,14 @@ function ProcurementStepper({
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Icon className={`w-3 h-3 shrink-0 ${
                       isSkipped ? "text-muted-foreground/30" :
-                      status === "completed" ? "text-emerald-600" :
+                      isCompleted ? "text-emerald-600" :
                       isNext && isOutbound ? "text-blue-600" :
                       isNext ? "text-amber-600" :
                       "text-muted-foreground/50"
                     }`} />
                     <span className={`font-semibold ${
                       isSkipped ? "line-through text-muted-foreground/40" :
-                      status === "completed" ? "text-foreground" :
+                      isCompleted ? "text-foreground" :
                       isNext && isOutbound ? "text-blue-700 dark:text-blue-300" :
                       isNext ? "text-amber-700 dark:text-amber-300" :
                       "text-muted-foreground/60"
@@ -199,22 +252,33 @@ function ProcurementStepper({
                     </span>
                   </div>
 
-                  {isNext && !isSkipped && !step.passive && (
-                    <Button
-                      size="sm"
-                      className="h-6 text-[10px] px-2 gap-1 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
-                      onClick={() => onAdvance(step.step)}
-                      disabled={isAdvancing}
-                    >
-                      {isAdvancing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
-                      Send PO
-                    </Button>
-                  )}
-                  {isNext && !isSkipped && step.passive && step.waitLabel && (
-                    <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 italic shrink-0">
-                      <Clock className="w-2.5 h-2.5" /> {step.waitLabel}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isCompleted && stepDoc && (
+                      <button
+                        onClick={() => onViewDoc(stepDoc.id)}
+                        className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 hover:underline font-medium transition-colors"
+                      >
+                        <Eye className="w-2.5 h-2.5" />
+                        View Document
+                      </button>
+                    )}
+                    {isNext && !isSkipped && !step.passive && (
+                      <Button
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => onAdvance(step.step)}
+                        disabled={isAdvancing}
+                      >
+                        {isAdvancing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
+                        Send PO
+                      </Button>
+                    )}
+                    {isNext && !isSkipped && step.passive && step.waitLabel && (
+                      <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 italic">
+                        <Clock className="w-2.5 h-2.5" /> {step.waitLabel}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {isNext && canSkip && (
@@ -668,6 +732,7 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
   const queryClient = useQueryClient();
   const [showItems, setShowItems] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [viewDocId, setViewDocId] = useState<string | null>(null);
 
   const { mutate: advanceStep, isPending: isAdvancing } = useMutation({
     mutationFn: async (step: number) => {
@@ -789,10 +854,15 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
           order={order}
           onAdvance={step => advanceStep(step)}
           onSkip={step => skipStep(step)}
+          onViewDoc={docId => setViewDocId(docId)}
           isAdvancing={isAdvancing}
           isSkipping={isSkipping}
         />
       </div>
+
+      {viewDocId && (
+        <EdiDocumentViewerDialog docId={viewDocId} onClose={() => setViewDocId(null)} />
+      )}
 
       {order.notes && (
         <div className="px-3 pb-3 sm:px-4">
