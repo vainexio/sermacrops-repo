@@ -70,7 +70,12 @@ function getGSFunctionId(content: string): string {
   return "XX";
 }
 
-export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: CompanyInfo): string {
+export interface GenerateX12Options {
+  /** When true, the sender is the buyer (e.g. SERMACROPS issuing a PO to a supplier). */
+  senderIsBuyer?: boolean;
+}
+
+export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: CompanyInfo, options: GenerateX12Options = {}): string {
   const items = parseLineItems(doc.lineItems);
   const icn = doc.controlNumber ?? "000000001";
   const stNum = icn.padStart(4, "0");
@@ -81,19 +86,26 @@ export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: Co
 
   let segs: string[] = [];
 
+  const { senderIsBuyer = false } = options;
+
   switch (doc.documentType) {
     case "850": {
       const lineSegs = items.map((it, i) =>
         `PO1*${i + 1}*${it.quantity}*${it.uom ?? "EA"}*${it.unitPrice}**VN*${it.description}~`
       );
+      // When senderIsBuyer (e.g. SERMACROPS issuing a PO to a supplier),
+      // sender = BY and receiver = SE. Otherwise (PO to a customer), receiver = BY and sender = SE.
+      const [buyerInfo, sellerInfo] = senderIsBuyer
+        ? [sender, receiver]
+        : [receiver, sender];
       segs = [
         `ST*850*${stNum}~`,
         `BEG*00*SA*${poNum}**${shipDate}~`,
         `CUR*BY*${currency}~`,
         `REF*DP*${doc.referenceNumber ?? "REF001"}~`,
         `ITD*01*3*2**10*30~`,
-        ...n1Loop("BY", receiver),
-        ...n1Loop("SE", sender),
+        ...n1Loop("BY", buyerInfo),
+        ...n1Loop("SE", sellerInfo),
         ...(lineSegs.length ? lineSegs : [`PO1*1*1*EA*0.00**VN*ITEM001~`]),
         `CTT*${items.length || 1}~`,
       ];

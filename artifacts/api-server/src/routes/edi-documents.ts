@@ -5,6 +5,12 @@ import { AuditLog } from "../models/AuditLog";
 import { Transaction } from "../models/Transaction";
 import { generateX12, type CompanyInfo } from "../lib/x12";
 
+function resolveX12Options(receiverCo: InstanceType<typeof Company> | { type?: string } | null) {
+  // When the receiver is a supplier, the sender (SERMACROPS) is the buyer — flip the N1 roles.
+  const receiverType = (receiverCo as { type?: string } | null)?.type ?? "";
+  return { senderIsBuyer: receiverType === "supplier" };
+}
+
 const router: IRouter = Router();
 
 let controlCounter = Math.floor(Math.random() * 900000) + 100000;
@@ -115,7 +121,7 @@ router.post("/edi-documents", async (req, res): Promise<void> => {
 
   const [senderCo, receiverCo] = await Promise.all([Company.findById(senderId), Company.findById(receiverId)]);
   if (senderCo && receiverCo) {
-    const x12 = generateX12(doc as never, toCompanyInfo(senderCo), toCompanyInfo(receiverCo));
+    const x12 = generateX12(doc as never, toCompanyInfo(senderCo), toCompanyInfo(receiverCo), resolveX12Options(receiverCo));
     await EdiDocument.findByIdAndUpdate(doc._id, { x12Content: x12 });
     doc.x12Content = x12;
   }
@@ -171,7 +177,7 @@ router.patch("/edi-documents/:id", async (req, res): Promise<void> => {
   Object.assign(existing, req.body);
   const [senderCo, receiverCo] = await Promise.all([Company.findById(existing.senderId), Company.findById(existing.receiverId)]);
   if (senderCo && receiverCo) {
-    existing.x12Content = generateX12(existing as never, toCompanyInfo(senderCo), toCompanyInfo(receiverCo));
+    existing.x12Content = generateX12(existing as never, toCompanyInfo(senderCo), toCompanyInfo(receiverCo), resolveX12Options(receiverCo));
   }
   await existing.save();
   await AuditLog.create({ action: "updated", entityType: "EdiDocument", entityId: raw, details: JSON.stringify(req.body) });
@@ -245,7 +251,7 @@ router.get("/edi-documents/:id/preview", async (req, res): Promise<void> => {
   if (!doc) { res.status(404).json({ error: "Not found" }); return; }
   if (!doc.x12Content) {
     const [senderCo, receiverCo] = await Promise.all([Company.findById(doc.senderId), Company.findById(doc.receiverId)]);
-    const content = generateX12(doc as never, toCompanyInfo(senderCo), toCompanyInfo(receiverCo));
+    const content = generateX12(doc as never, toCompanyInfo(senderCo), toCompanyInfo(receiverCo), resolveX12Options(receiverCo));
     res.json({ content, documentType: doc.documentType });
     return;
   }
