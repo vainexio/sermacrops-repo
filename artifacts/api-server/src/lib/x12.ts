@@ -114,12 +114,26 @@ export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: Co
     }
     case "855": {
       const ackCode = doc.ackStatus ?? "AC";
+      const ackDate = today();
+      // Line-level ACK code: IA = Item Accepted, IR = Item Rejected
+      const lineAckCode = (ackCode === "RJ" || ackCode === "RD") ? "IR" : "IA";
+      // PO1/ACK pair for each line item
+      const lineSegs = items.flatMap((it, i) => [
+        `PO1*${i + 1}*${it.quantity}*${it.uom ?? "EA"}*${it.unitPrice ?? ""}**VN*${it.description}~`,
+        `ACK*${lineAckCode}*${it.quantity}*${it.uom ?? "EA"}~`,
+      ]);
       segs = [
         `ST*855*${stNum}~`,
-        `BAK*00*${ackCode}*${poNum}*${shipDate}~`,
-        `REF*CO*${doc.referenceNumber ?? "AC001"}~`,
+        // BAK: purpose=00 (Original), ack type, original PO#, date ack is issued
+        `BAK*00*${ackCode}*${poNum}*${ackDate}~`,
+        `REF*CO*${doc.referenceNumber ?? poNum}~`,
+        // SE = seller (SERMACROPS, sender of the ack); BY = buyer (customer)
         ...n1Loop("SE", sender),
         ...n1Loop("BY", receiver),
+        // Line-level acknowledgments
+        ...lineSegs,
+        // CTT: transaction totals — only when line items are present
+        ...(lineSegs.length > 0 ? [`CTT*${items.length}~`] : []),
       ];
       segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
