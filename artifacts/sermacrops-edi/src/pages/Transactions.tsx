@@ -385,6 +385,20 @@ function AdvanceStepDialog({
     catch { return 0; }
   })();
 
+  const totalQty = (() => {
+    try {
+      const items = step1Doc?.lineItems
+        ? (JSON.parse(step1Doc.lineItems) as Record<string, unknown>[])
+        : [];
+      return items.reduce((sum, item) => sum + Number(item.quantity ?? item.qty ?? 1), 0);
+    } catch { return lineItemCount; }
+  })();
+
+  const logisticsCompany = companies.find(c => c.id === step3Doc?.receiverId);
+
+  const genId = (prefix: string) =>
+    `${prefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+
   // Step-specific state
   const [ackStatus, setAckStatus] = useState("AC");
   const [logisticsCompanyId, setLogisticsCompanyId] = useState("");
@@ -393,13 +407,13 @@ function AdvanceStepDialog({
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-8)}`);
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
   const [paymentTerms, setPaymentTerms] = useState((step1Doc as EdiDoc | null)?.paymentTerms ?? "");
-  // Step 7: ASN fields — pre-fill from prior docs where possible
+  // Step 9: ASN fields — pre-fill from prior docs where possible
   const [asnShipDate, setAsnShipDate] = useState(step1Doc?.shipDate ?? "");
-  const [asnCarrierName, setAsnCarrierName] = useState(step3Doc?.equipmentType ?? "");
-  const [asnProNumber, setAsnProNumber] = useState("");
-  const [asnTrackingNumber, setAsnTrackingNumber] = useState("");
-  const [asnPackageCount, setAsnPackageCount] = useState("");
-  const [asnWeight, setAsnWeight] = useState("");
+  const [asnCarrierName, setAsnCarrierName] = useState(logisticsCompany?.name ?? "");
+  const [asnProNumber, setAsnProNumber] = useState(() => genId("PRO"));
+  const [asnTrackingNumber, setAsnTrackingNumber] = useState(() => genId("TRK"));
+  const [asnPackageCount, setAsnPackageCount] = useState(lineItemCount > 0 ? String(lineItemCount) : "");
+  const [asnWeight, setAsnWeight] = useState(totalQty > 0 ? String(Math.round(totalQty * 25)) : "");
   const [asnWeightUOM, setAsnWeightUOM] = useState("KG");
 
   const partnerCompanies = companies.filter(c => c.type === "logistics");
