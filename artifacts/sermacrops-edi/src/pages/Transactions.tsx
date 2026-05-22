@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   useListTransactions, getListTransactionsQueryKey,
@@ -388,7 +388,7 @@ function AdvanceStepDialog({
   // Step-specific state
   const [ackStatus, setAckStatus] = useState("AC");
   const [logisticsCompanyId, setLogisticsCompanyId] = useState("");
-  const [equipmentType, setEquipmentType] = useState("");
+  const [equipmentType, setEquipmentType] = useState("VAN");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-8)}`);
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
@@ -402,7 +402,13 @@ function AdvanceStepDialog({
   const [asnWeight, setAsnWeight] = useState("");
   const [asnWeightUOM, setAsnWeightUOM] = useState("KG");
 
-  const partnerCompanies = companies.filter(c => !(/sermacrops/i.test(c.name ?? "")));
+  const partnerCompanies = companies.filter(c => c.type === "logistics");
+
+  useEffect(() => {
+    if (step.step === 3 && partnerCompanies.length > 0 && !logisticsCompanyId) {
+      setLogisticsCompanyId(partnerCompanies[0].id);
+    }
+  }, [step.step, partnerCompanies.length]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
