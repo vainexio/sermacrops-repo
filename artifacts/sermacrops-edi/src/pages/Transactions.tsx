@@ -255,7 +255,7 @@ function O2CFlowStepper({
                         isInboundNext ? "text-amber-700 dark:text-amber-300" :
                         "text-foreground"
                       }`}>
-                        Step {step.step} · {step.label}
+                        {step.label}
                       </span>
                     </div>
                     <DocTypeBadge type={step.ediType} />
@@ -405,8 +405,16 @@ function AdvanceStepDialog({
   const [equipmentType, setEquipmentType] = useState("VAN");
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-8)}`);
-  const [invoiceDueDate, setInvoiceDueDate] = useState("");
-  const [paymentTerms, setPaymentTerms] = useState((step1Doc as EdiDoc | null)?.paymentTerms ?? "");
+  const [paymentTerms, setPaymentTerms] = useState((step1Doc as EdiDoc | null)?.paymentTerms ?? "Net 30");
+
+  const computeDueDate = (terms: string): string => {
+    const match = terms.match(/net\s*(\d+)/i);
+    if (!match) return "";
+    const days = parseInt(match[1], 10);
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split("T")[0];
+  };
   // Step 9: ASN fields — pre-fill from prior docs where possible
   const [asnShipDate, setAsnShipDate] = useState(step1Doc?.shipDate ?? "");
   const [asnCarrierName, setAsnCarrierName] = useState(logisticsCompany?.name ?? "");
@@ -440,8 +448,8 @@ function AdvanceStepDialog({
     onSuccess: (data) => {
       toast({
         title: data.sendResult.success
-          ? `Step ${step.step} · ${step.label} sent`
-          : `Step ${step.step} · ${step.label} created`,
+          ? `${step.label} sent`
+          : `${step.label} created`,
         description: data.sendResult.message,
       });
       onSuccess();
@@ -474,7 +482,8 @@ function AdvanceStepDialog({
     }
     if (step.step === 10) {
       body.invoiceNumber = invoiceNumber;
-      if (invoiceDueDate) body.invoiceDueDate = invoiceDueDate;
+      const computedDueDate = computeDueDate(paymentTerms);
+      if (computedDueDate) body.invoiceDueDate = computedDueDate;
       if (paymentTerms) body.paymentTerms = paymentTerms;
     }
     mutate(body);
@@ -493,7 +502,7 @@ function AdvanceStepDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Icon className="w-4 h-4 text-blue-600" />
-            Step {step.step} · {step.label}
+            {step.label}
           </DialogTitle>
           <p className="text-xs text-muted-foreground pt-0.5">{step.from} → {step.to}</p>
         </DialogHeader>
@@ -692,7 +701,7 @@ function AdvanceStepDialog({
             </>
           )}
 
-          {/* Step 10: Invoice — SERMACROPS → Customer */}
+          {/* Invoice — SERMACROPS → Customer */}
           {step.step === 10 && (
             <>
               <div className="space-y-1.5">
@@ -702,24 +711,27 @@ function AdvanceStepDialog({
                   onChange={e => setInvoiceNumber(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Due Date</Label>
-                  <Input
-                    type="date"
-                    value={invoiceDueDate}
-                    onChange={e => setInvoiceDueDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Payment Terms</Label>
-                  <Input
-                    placeholder="e.g. Net 30"
-                    value={paymentTerms}
-                    onChange={e => setPaymentTerms(e.target.value)}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <Label>Payment Terms</Label>
+                <Select value={paymentTerms} onValueChange={setPaymentTerms}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Net 15">Net 15</SelectItem>
+                    <SelectItem value="Net 30">Net 30</SelectItem>
+                    <SelectItem value="Net 45">Net 45</SelectItem>
+                    <SelectItem value="Net 60">Net 60</SelectItem>
+                    <SelectItem value="COD">COD — Cash on Delivery</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              {computeDueDate(paymentTerms) && (
+                <div className="flex items-center justify-between rounded-md bg-muted/50 border border-border px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Due Date</span>
+                  <span className="font-medium tabular-nums">
+                    {new Date(computeDueDate(paymentTerms) + "T00:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                  </span>
+                </div>
+              )}
             </>
           )}
 
