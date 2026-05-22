@@ -531,7 +531,6 @@ function AdvanceStepDialog({
                 <SelectContent>
                   <SelectItem value="AC">✅ Accept</SelectItem>
                   <SelectItem value="RJ">❌ Reject</SelectItem>
-                  <SelectItem value="CA">✏️ Accept with Changes</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground">
