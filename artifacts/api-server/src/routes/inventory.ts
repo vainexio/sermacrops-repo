@@ -33,7 +33,7 @@ router.get("/inventory", async (req, res): Promise<void> => {
   const { category } = req.query as Record<string, string>;
   const filter: Record<string, unknown> = {};
   if (category) filter.category = category;
-  const items = await InventoryItem.find(filter).sort({ category: 1, name: 1 });
+  const items = await InventoryItem.find(filter).sort({ sku: 1 });
   res.json(await Promise.all(items.map(fmt)));
 });
 

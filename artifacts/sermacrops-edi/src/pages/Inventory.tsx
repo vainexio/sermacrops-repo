@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useListCompanies } from "@workspace/api-client-react";
 import { apiBase } from "@/lib/api";
@@ -326,6 +326,28 @@ function InventoryItemDialog({
   const [unit, setUnit] = useState(item?.unit ?? "ea");
   const [reorderPoint, setReorderPoint] = useState(String(item?.reorderPoint ?? ""));
   const [unitPrice, setUnitPrice] = useState(String(item?.unitPrice ?? ""));
+
+  const { data: inventoryItems } = useInventory();
+  const skuInitialized = useRef(false);
+
+  useEffect(() => {
+    if (!isEdit && !skuInitialized.current && inventoryItems) {
+      skuInitialized.current = true;
+      const prefix = category === "manufactured" ? "MFG" : "RAW";
+      const catItems = inventoryItems.filter(i => i.sku.startsWith(prefix + "-"));
+      const nextNum = catItems.length + 1;
+      setSku(`${prefix}-${String(nextNum).padStart(4, "0")}`);
+    }
+  }, [inventoryItems]);
+
+  useEffect(() => {
+    if (!isEdit) {
+      const qty = Number(quantity);
+      if (!isNaN(qty) && qty > 0) {
+        setReorderPoint(String(Math.floor(qty * 0.3)));
+      }
+    }
+  }, [quantity]);
   const [supplierId, setSupplierId] = useState(item?.supplierId ?? "none");
   const [notes, setNotes] = useState(item?.notes ?? "");
 
@@ -383,8 +405,11 @@ function InventoryItemDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>SKU <span className="text-destructive">*</span></Label>
-              <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="e.g. SKU-001" required />
+              <Label className="flex items-center gap-1">
+                SKU <span className="text-destructive">*</span>
+                {!isEdit && <span className="text-[10px] text-muted-foreground font-normal">(auto)</span>}
+              </Label>
+              <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="e.g. MFG-0001" required />
             </div>
             <div className="space-y-1.5">
               <Label>Unit <span className="text-destructive">*</span></Label>
@@ -410,8 +435,11 @@ function InventoryItemDialog({
               <Input type="number" min="0" step="0.01" value={quantity} onChange={e => setQuantity(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Reorder Point</Label>
-              <Input type="number" min="0" step="0.01" value={reorderPoint} onChange={e => setReorderPoint(e.target.value)} placeholder="Optional" />
+              <Label className="flex items-center gap-1">
+                Reorder Point
+                {!isEdit && <span className="text-[10px] text-muted-foreground font-normal">(30% of qty)</span>}
+              </Label>
+              <Input type="number" min="0" step="1" value={reorderPoint} onChange={e => setReorderPoint(e.target.value)} placeholder="Optional" />
             </div>
           </div>
           <div className="space-y-1.5">

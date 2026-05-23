@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import {
   useListTransactions, getListTransactionsQueryKey,
   useGetTransaction, getGetTransactionQueryKey,
@@ -83,6 +83,15 @@ type EdiDoc = EdiDocument & {
   weightUOM?: string | null;
   equipmentType?: string | null;
   specialInstructions?: string | null;
+};
+
+type InventoryItem = {
+  id: string;
+  name: string;
+  category: "manufactured" | "raw_material";
+  sku: string;
+  quantity: number;
+  unit: string;
 };
 
 type StepStatus = "completed" | "failed" | "in_progress" | "draft" | "next" | "pending" | "skipped";
@@ -432,6 +441,45 @@ function AdvanceStepDialog({
     }
   }, [step.step, partnerCompanies.length]);
 
+  // PO Acknowledgment — stock availability check
+  const { data: inventoryItems } = useQuery<InventoryItem[]>({
+    queryKey: ["inventory"],
+    queryFn: async () => {
+      const res = await fetch(`${apiBase}/api/inventory`);
+      return res.json();
+    },
+    enabled: step.step === 2,
+  });
+
+  const poLineItems = (() => {
+    try {
+      return step1Doc?.lineItems
+        ? (JSON.parse(step1Doc.lineItems) as Array<{ description: string; quantity: number }>)
+        : [];
+    } catch { return []; }
+  })();
+
+  const stockStatus = (inventoryItems && step.step === 2)
+    ? poLineItems.map(li => {
+        const inv = inventoryItems.find(
+          i => i.category === "manufactured" && i.name.toLowerCase() === li.description.toLowerCase()
+        );
+        return { description: li.description, required: li.quantity, available: inv?.quantity ?? 0, inStock: (inv?.quantity ?? 0) >= li.quantity };
+      })
+    : [];
+
+  useEffect(() => {
+    if (step.step === 2 && inventoryItems && poLineItems.length > 0) {
+      const allInStock = poLineItems.every(li => {
+        const inv = inventoryItems.find(
+          i => i.category === "manufactured" && i.name.toLowerCase() === li.description.toLowerCase()
+        );
+        return (inv?.quantity ?? 0) >= li.quantity;
+      });
+      setAckStatus(allInStock ? "AC" : "RJ");
+    }
+  }, [inventoryItems]);
+
   const { mutate, isPending } = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
       const res = await fetch(`${apiBase}/api/transactions/${transactionId}/advance-step`, {
@@ -551,20 +599,51 @@ function AdvanceStepDialog({
 
           {/* Step 2: PO Acknowledgment */}
           {step.step === 2 && (
-            <div className="space-y-1.5">
-              <Label>Response <span className="text-destructive">*</span></Label>
-              <Select value={ackStatus} onValueChange={setAckStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AC">✅ Accept</SelectItem>
-                  <SelectItem value="RJ">❌ Reject</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">
-                Dates, items, and PO number are automatically carried over.
-              </p>
+            <div className="space-y-3">
+              {/* Stock availability indicator */}
+              {stockStatus.length > 0 && (
+                <div className="rounded-lg border border-border bg-muted/30 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-border bg-muted/50 flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Stock Check</span>
+                    {stockStatus.every(s => s.inStock)
+                      ? <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">All items available</span>
+                      : <span className="text-[10px] font-semibold text-red-600 dark:text-red-400">Insufficient stock</span>}
+                  </div>
+                  <div className="divide-y divide-border/50">
+                    {stockStatus.map((s, i) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs gap-2">
+                        <span className="text-foreground font-medium truncate flex-1">{s.description}</span>
+                        <span className="text-muted-foreground tabular-nums shrink-0">
+                          {s.available} / {s.required}
+                        </span>
+                        {s.inStock
+                          ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          : <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {inventoryItems && stockStatus.length === 0 && poLineItems.length > 0 && (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                  No manufactured products matched the PO line items — verify inventory names.
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label>Response <span className="text-destructive">*</span></Label>
+                <Select value={ackStatus} onValueChange={setAckStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AC">✅ Accept</SelectItem>
+                    <SelectItem value="RJ">❌ Reject</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Dates, items, and PO number are automatically carried over.
+                </p>
+              </div>
             </div>
           )}
 
