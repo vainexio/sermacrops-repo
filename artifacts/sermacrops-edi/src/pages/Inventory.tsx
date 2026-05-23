@@ -333,7 +333,7 @@ function InventoryItemDialog({
   useEffect(() => {
     if (!isEdit && !skuInitialized.current && inventoryItems) {
       skuInitialized.current = true;
-      const prefix = category === "manufactured" ? "MFG" : "RAW";
+      const prefix = category === "manufactured" ? "SKU-MFG" : "SKU-RAW";
       const catItems = inventoryItems.filter(i => i.sku.startsWith(prefix + "-"));
       const nextNum = catItems.length + 1;
       setSku(`${prefix}-${String(nextNum).padStart(4, "0")}`);
