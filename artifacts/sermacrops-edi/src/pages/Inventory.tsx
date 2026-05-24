@@ -14,6 +14,7 @@ import {
   Plus, Pencil, Trash2, Package, Leaf, ShoppingCart, FileCheck,
   CheckCircle2, Clock, Circle, ArrowRight, Loader2, AlertTriangle,
   ChevronsRight, MinusCircle, Send, Boxes, FileText, Eye, X, CheckSquare, ExternalLink,
+  Warehouse, AlertCircle, TrendingDown,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -975,6 +976,155 @@ function SectionHeader({
   );
 }
 
+// ─── Supplier Stock Section ───────────────────────────────────────────────────
+
+type SupplierStockItem = {
+  sku: string;
+  name: string | null;
+  supplierQuantity: number;
+  ourQuantity: number | null;
+  uom: string;
+  matched: boolean;
+};
+
+type SupplierStock846 = {
+  documentId: string;
+  controlNumber: string | null;
+  supplierName: string | null;
+  receivedAt: string;
+  referenceNumber: string | null;
+  items: SupplierStockItem[];
+};
+
+function SupplierStockSection() {
+  const { data, isLoading, isError, refetch } = useQuery<SupplierStock846[]>({
+    queryKey: ["supplier-stock"],
+    queryFn: async () => {
+      const res = await fetch(`${apiBase}/api/supplier-stock`);
+      if (!res.ok) throw new Error("Failed to fetch supplier stock");
+      return res.json();
+    },
+    refetchInterval: 30_000,
+  });
+
+  return (
+    <section>
+      {/* Section header */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-7 h-7 rounded flex items-center justify-center bg-blue-500">
+          <Warehouse className="w-4 h-4 text-white" />
+        </div>
+        <div>
+          <h2 className="font-semibold text-sm text-foreground">Supplier Stock</h2>
+          <p className="text-[11px] text-muted-foreground">
+            Live inventory levels from suppliers via EDI 846 – Inventory Advice
+          </p>
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-20 bg-muted rounded-lg animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {isError && (
+        <div className="border border-dashed border-border rounded-lg py-8 flex flex-col items-center gap-2 text-muted-foreground">
+          <AlertCircle className="w-6 h-6 opacity-40" />
+          <p className="text-sm">Failed to load supplier stock</p>
+          <button onClick={() => refetch()} className="text-xs text-blue-500 hover:underline cursor-pointer">Retry</button>
+        </div>
+      )}
+
+      {!isLoading && !isError && (!data || data.length === 0) && (
+        <div className="border border-dashed border-border rounded-lg py-10 flex flex-col items-center gap-2 text-muted-foreground">
+          <Warehouse className="w-8 h-8 opacity-30" />
+          <p className="text-sm">No supplier stock advisories yet</p>
+          <p className="text-xs">Suppliers send EDI 846 documents to share their available stock</p>
+        </div>
+      )}
+
+      {data && data.length > 0 && (
+        <div className="space-y-4">
+          {data.map((doc) => (
+            <div key={doc.documentId} className="bg-card border border-border rounded-lg overflow-hidden">
+              {/* Doc header */}
+              <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-muted/30 border-b border-border">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {doc.supplierName ?? "Unknown Supplier"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {doc.referenceNumber && <span className="mr-2">{doc.referenceNumber}</span>}
+                    {doc.controlNumber && <span className="mr-2">CN: {doc.controlNumber}</span>}
+                    Received {new Date(doc.receivedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+                <Link href={`/documents/${doc.documentId}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
+                  View doc →
+                </Link>
+              </div>
+
+              {/* Items table */}
+              {doc.items.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-muted-foreground italic">No line items found</p>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {doc.items.map((item) => (
+                    <div key={item.sku} className="flex items-center gap-3 px-4 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        {item.matched ? (
+                          <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                        ) : (
+                          <p className="text-sm font-medium text-muted-foreground truncate italic">Unknown item</p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground font-mono">{item.sku}</p>
+                      </div>
+
+                      {/* Supplier qty */}
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {item.supplierQuantity.toLocaleString()}
+                          <span className="text-[10px] font-normal text-muted-foreground ml-1">{item.uom}</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">supplier stock</p>
+                      </div>
+
+                      {/* Our qty */}
+                      {item.matched && item.ourQuantity !== null && (
+                        <div className="text-right shrink-0 pl-3 border-l border-border/60">
+                          <p className={`text-sm font-semibold ${item.ourQuantity === 0 ? "text-destructive" : item.ourQuantity < 10 ? "text-amber-600" : "text-emerald-600"}`}>
+                            {item.ourQuantity.toLocaleString()}
+                            <span className="text-[10px] font-normal text-muted-foreground ml-1">{item.uom}</span>
+                          </p>
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 justify-end">
+                            {item.ourQuantity < 10 && <TrendingDown className="w-2.5 h-2.5 text-amber-500" />}
+                            our stock
+                          </p>
+                        </div>
+                      )}
+
+                      {!item.matched && (
+                        <div className="shrink-0 pl-3 border-l border-border/60">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded px-1.5 py-0.5">
+                            <AlertCircle className="w-2.5 h-2.5" /> No match
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Inventory() {
@@ -1072,6 +1222,9 @@ export default function Inventory() {
           )}
         </div>
       </section>
+
+      {/* ── Supplier Stock ── */}
+      <SupplierStockSection />
 
       {/* ── Procurement Orders ── */}
       <section>

@@ -25,8 +25,7 @@ import {
   ArrowLeftRight, ChevronDown, ChevronUp, Plus,
   CheckCircle2, XCircle, Clock, Circle, ArrowRight, Send,
   ShoppingCart, FileCheck, Truck, CheckSquare, Package, Receipt, Trash2,
-  Hourglass, MinusCircle, ChevronsRight, Loader2, Warehouse, AlertCircle,
-  TrendingDown,
+  Hourglass, MinusCircle, ChevronsRight, Loader2,
 } from "lucide-react";
 
 // ─── Order-to-Cash step definitions ──────────────────────────────────────────
@@ -1055,163 +1054,6 @@ function CreateTransactionDialog({ open, onClose }: { open: boolean; onClose: ()
   );
 }
 
-// ─── Supplier Stock Panel ─────────────────────────────────────────────────────
-
-type SupplierStockItem = {
-  sku: string;
-  name: string | null;
-  inventoryItemId: string | null;
-  supplierQuantity: number;
-  ourQuantity: number | null;
-  uom: string;
-  matched: boolean;
-};
-
-type SupplierStock846 = {
-  documentId: string;
-  controlNumber: string | null;
-  supplierId: string | null;
-  supplierName: string | null;
-  receivedAt: string;
-  referenceNumber: string | null;
-  items: SupplierStockItem[];
-};
-
-function SupplierStockPanel() {
-  const { data, isLoading, isError, refetch } = useQuery<SupplierStock846[]>({
-    queryKey: ["supplier-stock"],
-    queryFn: async () => {
-      const res = await fetch(`${apiBase}/api/supplier-stock`);
-      if (!res.ok) throw new Error("Failed to fetch supplier stock");
-      return res.json();
-    },
-    refetchInterval: 30_000,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex-1 p-6 space-y-4">
-        <div className="h-5 bg-muted rounded w-40 animate-pulse" />
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-24 bg-muted rounded-lg animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8 text-center">
-        <div className="space-y-2">
-          <AlertCircle className="w-8 h-8 mx-auto text-destructive opacity-60" />
-          <p className="text-sm text-muted-foreground">Failed to load supplier stock</p>
-          <button onClick={() => refetch()} className="text-xs text-blue-500 hover:underline cursor-pointer">Retry</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8 text-center">
-        <div className="space-y-2">
-          <Warehouse className="w-8 h-8 mx-auto opacity-20" />
-          <p className="text-sm text-muted-foreground">No supplier stock advisories yet</p>
-          <p className="text-xs text-muted-foreground/70">Suppliers send EDI 846 – Inventory Advice documents to share their stock levels</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-      <div>
-        <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-          <Warehouse className="w-4 h-4 text-blue-500" />
-          Supplier Stock
-        </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Live inventory levels reported by suppliers via EDI 846 – Inventory Advice
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {data.map((doc) => (
-          <div key={doc.documentId} className="bg-card border border-border rounded-lg overflow-hidden">
-            {/* Doc header */}
-            <div className="flex items-center justify-between gap-2 px-4 py-3 bg-muted/30 border-b border-border">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {doc.supplierName ?? "Unknown Supplier"}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {doc.referenceNumber && <span className="mr-2">{doc.referenceNumber}</span>}
-                  {doc.controlNumber && <span className="mr-2">CN: {doc.controlNumber}</span>}
-                  Received {new Date(doc.receivedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              <Link href={`/documents/${doc.documentId}`} className="text-[10px] text-blue-500 hover:underline shrink-0 font-medium">
-                View doc →
-              </Link>
-            </div>
-
-            {/* Items */}
-            {doc.items.length === 0 ? (
-              <p className="px-4 py-3 text-xs text-muted-foreground italic">No line items found in this document</p>
-            ) : (
-              <div className="divide-y divide-border/60">
-                {doc.items.map((item) => (
-                  <div key={item.sku} className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      {item.matched ? (
-                        <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                      ) : (
-                        <p className="text-sm font-medium text-muted-foreground truncate italic">Unknown item</p>
-                      )}
-                      <p className="text-[11px] text-muted-foreground font-mono">{item.sku}</p>
-                    </div>
-
-                    {/* Supplier qty */}
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {item.supplierQuantity.toLocaleString()}
-                        <span className="text-[10px] font-normal text-muted-foreground ml-1">{item.uom}</span>
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">supplier stock</p>
-                    </div>
-
-                    {/* Our qty */}
-                    {item.matched && item.ourQuantity !== null && (
-                      <div className="text-right shrink-0 pl-3 border-l border-border/60">
-                        <p className={`text-sm font-semibold ${item.ourQuantity === 0 ? "text-destructive" : item.ourQuantity < 10 ? "text-amber-600" : "text-emerald-600"}`}>
-                          {item.ourQuantity.toLocaleString()}
-                          <span className="text-[10px] font-normal text-muted-foreground ml-1">{item.uom}</span>
-                        </p>
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 justify-end">
-                          {item.ourQuantity < 10 && <TrendingDown className="w-2.5 h-2.5 text-amber-500" />}
-                          our stock
-                        </p>
-                      </div>
-                    )}
-
-                    {!item.matched && (
-                      <div className="shrink-0 pl-3 border-l border-border/60">
-                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded px-1.5 py-0.5">
-                          <AlertCircle className="w-2.5 h-2.5" /> No match
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Transactions Page ───────────────────────────────────────────────────
 
 export default function Transactions() {
@@ -1220,7 +1062,6 @@ export default function Transactions() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [rightView, setRightView] = useState<"flow" | "stock">("flow");
 
   const params = statusFilter !== "all" ? { status: statusFilter } : undefined;
   const { data: transactions, isLoading } = useListTransactions(params, {
@@ -1335,73 +1176,42 @@ export default function Transactions() {
       </div>
 
       {/* Right: detail panel (desktop) */}
-      <div className="hidden lg:flex flex-col flex-1 overflow-hidden">
-        {/* Tab bar */}
-        <div className="flex items-center gap-1 px-4 pt-3 pb-0 border-b border-border shrink-0">
-          <button
-            onClick={() => setRightView("flow")}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer ${
-              rightView === "flow"
-                ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <ArrowLeftRight className="w-3.5 h-3.5" />
-            O2C Flow
-          </button>
-          <button
-            onClick={() => setRightView("stock")}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer ${
-              rightView === "stock"
-                ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Warehouse className="w-3.5 h-3.5" />
-            Supplier Stock
-          </button>
-        </div>
-
-        {/* Tab content */}
-        <div className="flex flex-col flex-1 overflow-y-auto">
-          {rightView === "stock" ? (
-            <SupplierStockPanel />
-          ) : selectedId && detail ? (
-            <TransactionDetail
-              detail={detail}
-              onStatusChange={handleStatusChange}
-              onDelete={handleDeleteTx}
-            />
-          ) : selectedId && isDetailLoading ? (
-            <div className="p-4 sm:p-6 space-y-5 animate-pulse">
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-2 flex-1">
-                  <div className="h-6 bg-muted rounded w-40" />
-                  <div className="h-4 bg-muted rounded w-56" />
+      <div className="hidden lg:flex flex-col flex-1 overflow-y-auto">
+        {selectedId && detail ? (
+          <TransactionDetail
+            detail={detail}
+            onStatusChange={handleStatusChange}
+            onDelete={handleDeleteTx}
+          />
+        ) : selectedId && isDetailLoading ? (
+          <div className="p-4 sm:p-6 space-y-5 animate-pulse">
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-2 flex-1">
+                <div className="h-6 bg-muted rounded w-40" />
+                <div className="h-4 bg-muted rounded w-56" />
+              </div>
+              <div className="h-6 bg-muted rounded w-24" />
+            </div>
+            <div className="h-8 bg-muted rounded w-40" />
+            <div className="bg-card border border-card-border rounded-lg p-4 sm:p-5 space-y-4">
+              <div className="h-3 bg-muted rounded w-32" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-muted shrink-0 mt-1" />
+                  <div className="flex-1 h-20 bg-muted rounded-lg" />
                 </div>
-                <div className="h-6 bg-muted rounded w-24" />
-              </div>
-              <div className="h-8 bg-muted rounded w-40" />
-              <div className="bg-card border border-card-border rounded-lg p-4 sm:p-5 space-y-4">
-                <div className="h-3 bg-muted rounded w-32" />
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="w-6 h-6 rounded-full bg-muted shrink-0 mt-1" />
-                    <div className="flex-1 h-20 bg-muted rounded-lg" />
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-              <div className="text-center space-y-2">
-                <ArrowLeftRight className="w-8 h-8 mx-auto opacity-20" />
-                <p>Select a transaction to view its Order-to-Cash flow</p>
-                <p className="text-xs opacity-60">Receive an inbound 850 to automatically start a new transaction</p>
-              </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+            <div className="text-center space-y-2">
+              <ArrowLeftRight className="w-8 h-8 mx-auto opacity-20" />
+              <p>Select a transaction to view its Order-to-Cash flow</p>
+              <p className="text-xs opacity-60">Receive an inbound 850 to automatically start a new transaction</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Dialogs */}
