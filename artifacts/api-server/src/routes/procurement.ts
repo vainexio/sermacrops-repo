@@ -344,20 +344,6 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         deliveredAt: new Date(),
       });
 
-      // Update inventory quantities on invoice receipt
-      const updateErrors: string[] = [];
-      for (const li of order.lineItems) {
-        if (li.inventoryItemId) {
-          const item = await InventoryItem.findById(li.inventoryItemId);
-          if (item) {
-            item.quantity += li.quantity;
-            await item.save();
-          } else {
-            updateErrors.push(`Item ${li.inventoryItemId} not found`);
-          }
-        }
-      }
-
       order.currentStep = 5;
       order.status = "billing";
       await order.save();
@@ -366,14 +352,12 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         action: "invoice_received",
         entityType: "ProcurementOrder",
         entityId: order._id.toString(),
-        details: JSON.stringify({ documentType: "810", direction: "inbound", procurementOrderId: order._id.toString(), ediDocumentId: invoiceDoc._id.toString(), inventoryErrors: updateErrors }),
+        details: JSON.stringify({ documentType: "810", direction: "inbound", procurementOrderId: order._id.toString(), ediDocumentId: invoiceDoc._id.toString() }),
       });
 
       sendResult = {
-        success: updateErrors.length === 0,
-        message: updateErrors.length === 0
-          ? "Invoice (810) received — inventory updated, billing in progress"
-          : `Invoice received with warnings: ${updateErrors.join(", ")}`,
+        success: true,
+        message: "Invoice (810) received — billing in progress, send Receiving Advice to update stock",
       };
       break;
     }
@@ -431,6 +415,20 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         sendResult = { success: false, message: "No active endpoint — Receiving Advice (861) saved as ready" };
       }
 
+      // Update inventory quantities on receiving advice
+      const updateErrors5: string[] = [];
+      for (const li of order.lineItems) {
+        if (li.inventoryItemId) {
+          const item = await InventoryItem.findById(li.inventoryItemId);
+          if (item) {
+            item.quantity += li.quantity;
+            await item.save();
+          } else {
+            updateErrors5.push(`Item ${li.inventoryItemId} not found`);
+          }
+        }
+      }
+
       order.currentStep = 6;
       order.status = "completed";
       await order.save();
@@ -442,7 +440,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
   }
 
   broadcast("procurement");
-  if (step === 4) broadcast("inventory");
+  if (step === 5) broadcast("inventory");
   res.json({ success: true, sendResult, order: await fmtOrder(order) });
 });
 
