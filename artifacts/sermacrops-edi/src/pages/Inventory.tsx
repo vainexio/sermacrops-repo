@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { useListCompanies } from "@workspace/api-client-react";
 import { apiBase } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import StatusBadge from "@/components/StatusBadge";
 import {
   Plus, Pencil, Trash2, Package, Leaf, ShoppingCart, FileCheck,
   CheckCircle2, Clock, Circle, ArrowRight, Loader2, AlertTriangle,
-  ChevronsRight, MinusCircle, Send, Boxes, FileText, Eye, X, CheckSquare,
+  ChevronsRight, MinusCircle, Send, Boxes, FileText, Eye, X, CheckSquare, ExternalLink,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -101,7 +103,7 @@ function LowStockBadge({ quantity, reorderPoint }: { quantity: number; reorderPo
 
 // ─── EDI Document Viewer Dialog ───────────────────────────────────────────────
 
-function EdiDocumentViewerDialog({ docId, onClose }: { docId: string; onClose: () => void }) {
+function EdiDocumentViewerDialog({ docId, stepDoc, onClose }: { docId: string; stepDoc?: StepDoc | null; onClose: () => void }) {
   const { data, isLoading } = useQuery<{ content: string; documentType: string }>({
     queryKey: ["edi-doc-preview", docId],
     queryFn: async () => {
@@ -111,15 +113,31 @@ function EdiDocumentViewerDialog({ docId, onClose }: { docId: string; onClose: (
     },
   });
 
+  const docType = stepDoc?.documentType ?? data?.documentType;
+
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader className="shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <DialogTitle className="flex items-center gap-2 text-base">
               <FileText className="w-4 h-4 text-blue-600" />
-              EDI {data?.documentType ?? "Document"}
+              EDI {docType ?? "Document"}
+              {stepDoc?.controlNumber && (
+                <span className="text-xs font-normal text-muted-foreground font-mono">#{stepDoc.controlNumber}</span>
+              )}
             </DialogTitle>
+            <div className="flex items-center gap-2">
+              {stepDoc?.status && <StatusBadge status={stepDoc.status} className="text-[10px] py-0" />}
+              <Link
+                href={`/documents/${docId}`}
+                onClick={onClose}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Open in Documents
+              </Link>
+            </div>
           </div>
         </DialogHeader>
         <div className="flex-1 overflow-auto min-h-0">
@@ -199,7 +217,7 @@ function ProcurementStepper({
   order: ProcurementOrder;
   onAdvance: (step: number) => void;
   onSkip: (step: number) => void;
-  onViewDoc: (docId: string) => void;
+  onViewDoc: (docId: string, stepDoc: StepDoc) => void;
   isAdvancing: boolean;
   isSkipping: boolean;
 }) {
@@ -254,15 +272,25 @@ function ProcurementStepper({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                     {isCompleted && stepDoc && (
-                      <button
-                        onClick={() => onViewDoc(stepDoc.id)}
-                        className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 hover:underline font-medium transition-colors"
-                      >
-                        <Eye className="w-2.5 h-2.5" />
-                        View Document
-                      </button>
+                      <>
+                        <StatusBadge status={stepDoc.status} className="text-[10px] py-0 px-1.5" />
+                        <button
+                          onClick={() => onViewDoc(stepDoc.id, stepDoc)}
+                          className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 hover:underline font-medium transition-colors"
+                        >
+                          <Eye className="w-2.5 h-2.5" />
+                          View
+                        </button>
+                        <Link
+                          href={`/documents/${stepDoc.id}`}
+                          className="flex items-center gap-0.5 text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-medium transition-colors"
+                        >
+                          <ExternalLink className="w-2.5 h-2.5" />
+                          Open
+                        </Link>
+                      </>
                     )}
                     {isNext && !isSkipped && !step.passive && step.sendLabel && (
                       <Button
@@ -763,6 +791,7 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
   const [showItems, setShowItems] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [viewDocId, setViewDocId] = useState<string | null>(null);
+  const [viewStepDoc, setViewStepDoc] = useState<StepDoc | null>(null);
 
   const { mutate: advanceStep, isPending: isAdvancing } = useMutation({
     mutationFn: async (step: number) => {
@@ -777,8 +806,14 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
       }
       return res.json();
     },
-    onSuccess: (data: { sendResult: { message: string } }) => {
-      toast({ title: "Step advanced", description: data.sendResult?.message });
+    onSuccess: (data: { sendResult: { success: boolean; message: string } }, stepNum: number) => {
+      const stepDef = PROC_STEPS.find(s => s.step === stepNum);
+      const stepLabel = stepDef?.label ?? "Step";
+      toast({
+        title: data.sendResult?.success ? `${stepLabel} sent` : `${stepLabel} saved`,
+        description: data.sendResult?.message,
+        variant: data.sendResult?.success ? "default" : "default",
+      });
       queryClient.invalidateQueries({ queryKey: ["procurement"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
@@ -884,14 +919,18 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
           order={order}
           onAdvance={step => advanceStep(step)}
           onSkip={step => skipStep(step)}
-          onViewDoc={docId => setViewDocId(docId)}
+          onViewDoc={(docId, sd) => { setViewDocId(docId); setViewStepDoc(sd); }}
           isAdvancing={isAdvancing}
           isSkipping={isSkipping}
         />
       </div>
 
       {viewDocId && (
-        <EdiDocumentViewerDialog docId={viewDocId} onClose={() => setViewDocId(null)} />
+        <EdiDocumentViewerDialog
+          docId={viewDocId}
+          stepDoc={viewStepDoc}
+          onClose={() => { setViewDocId(null); setViewStepDoc(null); }}
+        />
       )}
 
       {order.notes && (
