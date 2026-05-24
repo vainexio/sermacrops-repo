@@ -42,6 +42,7 @@ export interface IEdiDocument extends Document {
   sentAt?: Date;
   deliveredAt?: Date;
   transactionId?: Types.ObjectId;
+  procurementOrderId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,6 +84,7 @@ const EdiDocumentSchema = new Schema<IEdiDocument>(
     sentAt: { type: Date },
     deliveredAt: { type: Date },
     transactionId: { type: Schema.Types.ObjectId, ref: "Transaction" },
+    procurementOrderId: { type: Schema.Types.ObjectId, ref: "ProcurementOrder" },
   },
   { timestamps: true }
 );

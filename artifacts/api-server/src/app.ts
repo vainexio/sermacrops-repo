@@ -4,6 +4,8 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { connectDB } from "./lib/mongodb";
+import { EdiDocument } from "./models/EdiDocument";
+import { ProcurementOrder } from "./models/ProcurementOrder";
 
 const app: Express = express();
 
@@ -39,10 +41,25 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.text({ type: ["text/plain", "application/EDI-X12", "application/edi-x12"], limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-connectDB().catch((err) => {
-  logger.error({ err }, "Failed to connect to MongoDB");
-  process.exit(1);
-});
+connectDB()
+  .then(async () => {
+    // Backfill procurementOrderId on legacy EdiDocuments that predate the field
+    try {
+      const orders = await ProcurementOrder.find().lean();
+      for (const order of orders) {
+        await EdiDocument.updateMany(
+          { referenceNumber: order.referenceNumber, procurementOrderId: { $exists: false } },
+          { $set: { procurementOrderId: order._id } }
+        );
+      }
+    } catch (err) {
+      logger.warn({ err }, "procurementOrderId backfill failed (non-fatal)");
+    }
+  })
+  .catch((err) => {
+    logger.error({ err }, "Failed to connect to MongoDB");
+    process.exit(1);
+  });
 
 app.use("/api", router);
 

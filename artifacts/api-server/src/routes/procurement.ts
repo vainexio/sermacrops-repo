@@ -36,8 +36,8 @@ async function fmtOrder(order: InstanceType<typeof ProcurementOrder>) {
     }
   }
 
-  // Per-step EDI docs keyed by document type (e.g. "850", "855", "856", "810")
-  const allDocs = await EdiDocument.find({ referenceNumber: o.referenceNumber }).lean();
+  // Per-step EDI docs strictly scoped to this procurement order
+  const allDocs = await EdiDocument.find({ procurementOrderId: o._id }).lean();
   const stepDocs: Record<string, { id: string; documentType: string; status: string; controlNumber: string }> = {};
   for (const doc of allDocs) {
     if (!stepDocs[doc.documentType]) {
@@ -74,24 +74,25 @@ router.get("/procurement", async (_req, res): Promise<void> => {
 
   // Batch all lookups — 3 queries total regardless of order count
   const supplierIds = [...new Set(orders.map(o => o.supplierId.toString()))];
-  const refNums = orders.map(o => o.referenceNumber).filter(Boolean);
+  const orderIds = orders.map(o => o._id);
   const ediDocIds = orders.map(o => o.ediDocumentId?.toString()).filter(Boolean);
 
   const [suppliers, allDocs, primaryDocs] = await Promise.all([
     Company.find({ _id: { $in: supplierIds } }).lean(),
-    EdiDocument.find({ referenceNumber: { $in: refNums } }).lean(),
+    EdiDocument.find({ procurementOrderId: { $in: orderIds } }).lean(),
     ediDocIds.length ? EdiDocument.find({ _id: { $in: ediDocIds } }).lean() : Promise.resolve([]),
   ]);
 
   const supplierMap = new Map(suppliers.map(s => [s._id.toString(), s]));
   const primaryDocMap = new Map(primaryDocs.map(d => [d._id.toString(), d]));
 
-  // Group docs by referenceNumber, keeping first per documentType
-  const docsByRef = new Map<string, Map<string, typeof allDocs[number]>>();
+  // Group docs by procurementOrderId, keeping first per documentType
+  const docsByOrder = new Map<string, Map<string, typeof allDocs[number]>>();
   for (const doc of allDocs) {
-    if (!doc.referenceNumber) continue;
-    if (!docsByRef.has(doc.referenceNumber)) docsByRef.set(doc.referenceNumber, new Map());
-    const byType = docsByRef.get(doc.referenceNumber)!;
+    if (!doc.procurementOrderId) continue;
+    const orderId = doc.procurementOrderId.toString();
+    if (!docsByOrder.has(orderId)) docsByOrder.set(orderId, new Map());
+    const byType = docsByOrder.get(orderId)!;
     if (!byType.has(doc.documentType)) byType.set(doc.documentType, doc);
   }
 
@@ -103,7 +104,7 @@ router.get("/procurement", async (_req, res): Promise<void> => {
       status: primary.status, controlNumber: primary.controlNumber ?? "",
     } : null;
 
-    const byType = docsByRef.get(o.referenceNumber) ?? new Map();
+    const byType = docsByOrder.get(o._id.toString()) ?? new Map();
     const stepDocs: Record<string, { id: string; documentType: string; status: string; controlNumber: string }> = {};
     for (const [docType, doc] of byType) {
       stepDocs[docType] = { id: doc._id.toString(), documentType: doc.documentType, status: doc.status, controlNumber: doc.controlNumber ?? "" };
@@ -175,7 +176,18 @@ router.patch("/procurement/:id", async (req, res): Promise<void> => {
   const { status, notes, skippedSteps } = req.body;
   if (status !== undefined) order.status = status;
   if (notes !== undefined) order.notes = notes;
-  if (skippedSteps !== undefined) order.skippedSteps = skippedSteps;
+  if (skippedSteps !== undefined) {
+    order.skippedSteps = skippedSteps;
+    // Auto-advance currentStep past any newly-skipped steps
+    const skippedSet = new Set(skippedSteps as number[]);
+    let next = order.currentStep;
+    while (next <= 5 && skippedSet.has(next)) next++;
+    if (next !== order.currentStep) {
+      order.currentStep = next;
+      const stepStatus: Record<number, string> = { 3: "acknowledged", 4: "received", 5: "billing", 6: "completed" };
+      if (stepStatus[next]) order.status = stepStatus[next] as typeof order.status;
+    }
+  }
   await order.save();
   broadcast("procurement");
   res.json(await fmtOrder(order));
@@ -244,6 +256,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         currencyCode: "PHP",
         deliveryDate: deliveryDateStr,
         status: "ready",
+        procurementOrderId: order._id,
       });
 
       const x12 = generateX12(doc as never, toCoInfo(sermacrops), toCoInfo(supplier), { senderIsBuyer: true });
@@ -314,6 +327,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         status: "delivered",
         sentAt: new Date(),
         deliveredAt: new Date(),
+        procurementOrderId: order._id,
       });
 
       await AuditLog.create({
@@ -345,6 +359,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         status: "delivered",
         sentAt: new Date(),
         deliveredAt: new Date(),
+        procurementOrderId: order._id,
       });
 
       order.currentStep = 5;
@@ -366,7 +381,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
     }
     case 5: {
       // Outbound 861 — Receiving Advice sent back to supplier
-      const po850 = await EdiDocument.findOne({ referenceNumber: order.referenceNumber, documentType: "850" }).lean();
+      const po850 = await EdiDocument.findOne({ procurementOrderId: order._id, documentType: "850" }).lean();
       const cn5 = nextCN();
       const raDoc = await EdiDocument.create({
         documentType: "861",
@@ -379,6 +394,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         lineItems: po850?.lineItems ?? null,
         currencyCode: "PHP",
         status: "ready",
+        procurementOrderId: order._id,
       });
 
       const x12ra = generateX12(raDoc as never, toCoInfo(sermacrops), toCoInfo(supplier), { senderIsBuyer: true });

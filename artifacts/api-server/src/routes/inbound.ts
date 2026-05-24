@@ -187,9 +187,12 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
       }
 
       // Auto-advance procurement order when inbound 855/856/810 arrives
-      if (refKey && (docType === "855" || docType === "856" || docType === "810")) {
+      if (refKey && (docType === "855" || docType === "856" || docType === "810" || docType === "861")) {
         const procOrder = await ProcurementOrder.findOne({ referenceNumber: refKey });
         if (procOrder) {
+          // Tag the inbound doc so it is strictly scoped to this order
+          await EdiDocument.findByIdAndUpdate(doc._id, { procurementOrderId: procOrder._id });
+
           if (docType === "855" && procOrder.currentStep === 2) {
             procOrder.currentStep = 3;
             procOrder.status = "acknowledged";
