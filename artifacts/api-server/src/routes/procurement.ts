@@ -284,7 +284,10 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
       }
 
       order.ediDocumentId = doc._id;
-      order.currentStep = 2;
+      // Only advance past step 1 if the EDI send actually succeeded
+      if (sendResult.success) {
+        order.currentStep = 2;
+      }
       order.status = "open";
       await order.save();
       break;
@@ -415,7 +418,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         sendResult = { success: false, message: "No active endpoint — Receiving Advice (861) saved as ready" };
       }
 
-      // Update inventory quantities on receiving advice
+      // Update inventory quantities on receiving advice (physical goods received regardless of EDI delivery)
       const updateErrors5: string[] = [];
       for (const li of order.lineItems) {
         if (li.inventoryItemId) {
@@ -429,8 +432,11 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         }
       }
 
-      order.currentStep = 6;
-      order.status = "completed";
+      // Only complete the order if the 861 was delivered — otherwise stay at step 5 for retry
+      if (sendResult.success) {
+        order.currentStep = 6;
+        order.status = "completed";
+      }
       await order.save();
       break;
     }

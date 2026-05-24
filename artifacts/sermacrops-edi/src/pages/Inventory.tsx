@@ -171,12 +171,29 @@ const PROC_STEPS = [
 
 type ProcStep = typeof PROC_STEPS[number];
 
-type ProcStepStatus = "completed" | "next" | "pending" | "skipped";
+type ProcStepStatus = "completed" | "failed" | "next" | "pending" | "skipped";
 
 function getProcStepStatus(step: ProcStep, order: ProcurementOrder, _index: number): ProcStepStatus {
   const skipped = new Set(order.skippedSteps ?? []);
   if (skipped.has(step.step)) return "skipped";
   if (order.status === "completed") return "completed";
+
+  const stepDoc = order.stepDocs?.[step.docType];
+
+  // If this step's doc is in a failed or retry-pending state, show it as failed
+  if (stepDoc && (stepDoc.status === "failed" || stepDoc.status === "retry_pending")) {
+    return "failed";
+  }
+
+  // If any prior non-skipped step is failed, block all subsequent steps
+  const hasPriorFailed = PROC_STEPS.some(s =>
+    s.step < step.step &&
+    !skipped.has(s.step) &&
+    order.stepDocs?.[s.docType] != null &&
+    (order.stepDocs[s.docType].status === "failed" || order.stepDocs[s.docType].status === "retry_pending")
+  );
+  if (hasPriorFailed) return "pending";
+
   if (step.step < order.currentStep) return "completed";
   if (step.step === order.currentStep) return "next";
   return "pending";
@@ -186,6 +203,11 @@ function ProcStepCircle({ status }: { status: ProcStepStatus }) {
   if (status === "completed") return (
     <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 shadow-sm">
       <CheckCircle2 className="w-4 h-4 text-white" />
+    </div>
+  );
+  if (status === "failed") return (
+    <div className="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center shrink-0 shadow-sm">
+      <X className="w-4 h-4 text-white" />
     </div>
   );
   if (status === "next") return (
@@ -233,7 +255,8 @@ function ProcurementStepper({
         const isNext = status === "next";
         const isSkipped = status === "skipped";
         const isCompleted = status === "completed";
-        const canSkip = isNext && order.status !== "completed";
+        const isFailed = status === "failed";
+        const canSkip = (isNext || isFailed) && order.status !== "completed";
         const isOutbound = step.direction === "outbound";
         const stepDoc = order.stepDocs?.[step.docType];
 
@@ -242,12 +265,17 @@ function ProcurementStepper({
             <div className="flex flex-col items-center">
               <ProcStepCircle status={status} />
               {!isLast && (
-                <div className={`w-0.5 flex-1 my-1 min-h-[1.5rem] rounded-full ${isCompleted ? "bg-emerald-300" : "bg-border"}`} />
+                <div className={`w-0.5 flex-1 my-1 min-h-[1.5rem] rounded-full ${
+                  isCompleted ? "bg-emerald-300" :
+                  isFailed ? "bg-red-300" :
+                  "bg-border"
+                }`} />
               )}
             </div>
             <div className="flex-1 pb-3">
               <div className={`rounded-lg border p-2.5 transition-colors text-xs ${
                 isSkipped ? "border-border/30 bg-muted/10 opacity-60" :
+                isFailed ? "border-red-200 bg-red-50/40 dark:bg-red-950/20 dark:border-red-900" :
                 isCompleted ? "border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/20 dark:border-emerald-900" :
                 isNext && isOutbound ? "border-blue-300 bg-blue-50 dark:bg-blue-950/30 ring-1 ring-blue-200" :
                 isNext ? "border-amber-200 bg-amber-50/50 dark:bg-amber-950/20" :
@@ -257,6 +285,7 @@ function ProcurementStepper({
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Icon className={`w-3 h-3 shrink-0 ${
                       isSkipped ? "text-muted-foreground/30" :
+                      isFailed ? "text-red-500" :
                       isCompleted ? "text-emerald-600" :
                       isNext && isOutbound ? "text-blue-600" :
                       isNext ? "text-amber-600" :
@@ -264,6 +293,7 @@ function ProcurementStepper({
                     }`} />
                     <span className={`font-semibold ${
                       isSkipped ? "line-through text-muted-foreground/40" :
+                      isFailed ? "text-red-700 dark:text-red-400" :
                       isCompleted ? "text-foreground" :
                       isNext && isOutbound ? "text-blue-700 dark:text-blue-300" :
                       isNext ? "text-amber-700 dark:text-amber-300" :
@@ -274,12 +304,14 @@ function ProcurementStepper({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                    {isCompleted && stepDoc && (
+                    {(isCompleted || isFailed) && stepDoc && (
                       <>
                         <StatusBadge status={stepDoc.status} className="text-[10px] py-0 px-1.5" />
                         <button
                           onClick={() => onViewDoc(stepDoc.id, stepDoc)}
-                          className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 hover:underline font-medium transition-colors"
+                          className={`flex items-center gap-1 text-[10px] hover:underline font-medium transition-colors ${
+                            isFailed ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"
+                          }`}
                         >
                           <Eye className="w-2.5 h-2.5" />
                           View
@@ -292,6 +324,17 @@ function ProcurementStepper({
                           Open
                         </Link>
                       </>
+                    )}
+                    {isFailed && isOutbound && (
+                      <Button
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 bg-red-600 hover:bg-red-700 text-white"
+                        onClick={() => onAdvance(step.step)}
+                        disabled={isAdvancing}
+                      >
+                        {isAdvancing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
+                        Retry
+                      </Button>
                     )}
                     {isNext && !isSkipped && !step.passive && step.sendLabel && (
                       <Button
@@ -312,7 +355,7 @@ function ProcurementStepper({
                   </div>
                 </div>
 
-                {isNext && canSkip && (
+                {(isNext || isFailed) && canSkip && (
                   <div className="mt-1.5 pt-1.5 border-t border-border/30">
                     <button
                       onClick={() => onSkip(step.step)}
