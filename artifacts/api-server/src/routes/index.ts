@@ -9,6 +9,7 @@ import dashboardRouter from "./dashboard";
 import inventoryRouter from "./inventory";
 import procurementRouter from "./procurement";
 import eventsRouter from "./events";
+import supplierStockRouter from "./supplier-stock";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(dashboardRouter);
 router.use(inventoryRouter);
 router.use(procurementRouter);
 router.use(eventsRouter);
+router.use(supplierStockRouter);
 
 export default router;
