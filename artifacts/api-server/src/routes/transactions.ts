@@ -262,7 +262,7 @@ router.post("/transactions/:id/advance-step", async (req, res): Promise<void> =>
     await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
   }
   if (fields.documentType === "810" && fields.direction === "outbound") {
-    await Transaction.findByIdAndUpdate(tx._id, { status: "completed" });
+    await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
   }
 
   const updatedTx = await Transaction.findById(txId);
