@@ -3,6 +3,7 @@ import { EdiDocument } from "../models/EdiDocument";
 import { Transaction } from "../models/Transaction";
 import { Company } from "../models/Company";
 import { AuditLog } from "../models/AuditLog";
+import { ProcurementOrder } from "../models/ProcurementOrder";
 
 const router: IRouter = Router();
 
@@ -91,6 +92,45 @@ router.get("/dashboard/document-stats", async (_req, res): Promise<void> => {
     return { documentType: docType, total, delivered, failed, draft, sent };
   }));
   res.json(stats);
+});
+
+router.get("/dashboard/transaction-stats", async (_req, res): Promise<void> => {
+  const statuses = ["open", "in_progress", "completed", "cancelled"];
+  const counts = await Promise.all(statuses.map(s => Transaction.countDocuments({ status: s })));
+  const result = statuses.map((s, i) => ({ status: s, count: counts[i] }));
+  const total = counts.reduce((a, b) => a + b, 0);
+  res.json({ breakdown: result, total });
+});
+
+router.get("/dashboard/procurement-stats", async (_req, res): Promise<void> => {
+  const statuses = ["open", "acknowledged", "received", "billing", "completed"];
+  const counts = await Promise.all(statuses.map(s => ProcurementOrder.countDocuments({ status: s })));
+  const result = statuses.map((s, i) => ({ status: s, count: counts[i] }));
+  const total = counts.reduce((a, b) => a + b, 0);
+  res.json({ breakdown: result, total });
+});
+
+router.get("/dashboard/doc-timeline", async (_req, res): Promise<void> => {
+  const days = 7;
+  const result: { date: string; inbound: number; outbound: number; total: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - i);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const [inbound, outbound] = await Promise.all([
+      EdiDocument.countDocuments({ direction: "inbound", createdAt: { $gte: start, $lt: end } }),
+      EdiDocument.countDocuments({ direction: "outbound", createdAt: { $gte: start, $lt: end } }),
+    ]);
+    result.push({
+      date: start.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      inbound,
+      outbound,
+      total: inbound + outbound,
+    });
+  }
+  res.json(result);
 });
 
 router.get("/audit-logs", async (req, res): Promise<void> => {
