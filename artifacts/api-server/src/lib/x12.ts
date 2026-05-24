@@ -445,6 +445,33 @@ export function parseX12Fields(payload: string, docType: string): ParsedX12Field
       break;
     }
 
+    case "861": {
+      // BRA*<raNumber>*<poNumber>*<receiveDate>*<purpose>
+      const bra = seg("BRA");
+      if (bra) {
+        f.poNumber = bra[1]?.trim() || undefined;
+        f.referenceNumber = f.poNumber;
+        if (bra[2]) f.deliveryDate = toDate(bra[2].trim());
+      }
+      // REF*PO*<poNumber> — fallback if BRA didn't have it
+      if (!f.poNumber) {
+        const ref = seg("REF");
+        if (ref && ref[0]?.trim() === "PO") f.poNumber = f.referenceNumber = ref[1]?.trim() || undefined;
+      }
+      // RCD line items: RCD*<lineNum>*<qty>*<uom>**VN*<desc>
+      const rcds = allSegs("RCD");
+      if (rcds.length > 0) {
+        const items = rcds.map(r => ({
+          description: r[5]?.trim() ?? r[4]?.trim() ?? "Item",
+          quantity: Number(r[1]) || 1,
+          unitPrice: 0,
+          uom: r[2]?.trim() ?? "EA",
+        }));
+        f.lineItems = JSON.stringify(items);
+      }
+      break;
+    }
+
     case "990": {
       // B1A*<responseCode>
       const b1a = seg("B1A");
