@@ -90,8 +90,58 @@ router.get("/edi-documents", async (req, res): Promise<void> => {
   if (direction) filter.direction = direction;
   if (documentType) filter.documentType = documentType;
   if (companyId) filter.$or = [{ senderId: companyId }, { receiverId: companyId }];
-  const docs = await EdiDocument.find(filter).sort({ createdAt: -1 }).limit(200);
-  res.json(await Promise.all(docs.map(fmtDoc)));
+  const docs = await EdiDocument.find(filter).sort({ createdAt: -1 }).limit(200).lean();
+
+  // Batch company lookups — two queries instead of 2×N
+  const companyIds = [...new Set([
+    ...docs.map(d => d.senderId?.toString()),
+    ...docs.map(d => d.receiverId?.toString()),
+  ].filter(Boolean) as string[])];
+  const companies = companyIds.length ? await Company.find({ _id: { $in: companyIds } }).lean() : [];
+  const companyMap = new Map(companies.map(c => [c._id.toString(), c]));
+
+  res.json(docs.map(o => ({
+    id: o._id.toString(),
+    documentType: o.documentType,
+    direction: o.direction,
+    status: o.status,
+    senderId: o.senderId.toString(),
+    senderName: companyMap.get(o.senderId.toString())?.name ?? null,
+    receiverId: o.receiverId.toString(),
+    receiverName: companyMap.get(o.receiverId.toString())?.name ?? null,
+    controlNumber: o.controlNumber,
+    referenceNumber: o.referenceNumber ?? null,
+    poNumber: o.poNumber ?? null,
+    shipDate: o.shipDate ?? null,
+    deliveryDate: o.deliveryDate ?? null,
+    totalAmount: o.totalAmount != null ? Number(o.totalAmount) : null,
+    lineItems: o.lineItems ?? null,
+    paymentTerms: o.paymentTerms ?? null,
+    shippingDetails: o.shippingDetails ?? null,
+    notes: o.notes ?? null,
+    x12Content: o.x12Content ?? null,
+    currencyCode: o.currencyCode ?? null,
+    invoiceNumber: o.invoiceNumber ?? null,
+    invoiceDueDate: o.invoiceDueDate ?? null,
+    ackStatus: o.ackStatus ?? null,
+    carrierName: o.carrierName ?? null,
+    proNumber: o.proNumber ?? null,
+    trackingNumber: o.trackingNumber ?? null,
+    packageCount: o.packageCount ?? null,
+    weight: o.weight ?? null,
+    weightUOM: o.weightUOM ?? null,
+    equipmentType: o.equipmentType ?? null,
+    specialInstructions: o.specialInstructions ?? null,
+    loadResponseCode: o.loadResponseCode ?? null,
+    retryCount: o.retryCount,
+    lastResponseCode: o.lastResponseCode ?? null,
+    lastResponseBody: o.lastResponseBody ?? null,
+    sentAt: o.sentAt?.toISOString() ?? null,
+    deliveredAt: o.deliveredAt?.toISOString() ?? null,
+    transactionId: o.transactionId?.toString() ?? null,
+    createdAt: o.createdAt.toISOString(),
+    updatedAt: o.updatedAt.toISOString(),
+  })));
 });
 
 router.post("/edi-documents", async (req, res): Promise<void> => {
@@ -150,7 +200,7 @@ router.post("/edi-documents", async (req, res): Promise<void> => {
             await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
           }
           if (documentType === "810" && direction === "outbound") {
-            await Transaction.findByIdAndUpdate(tx._id, { status: "completed" });
+            await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
           }
         }
       } catch (err) {

@@ -248,8 +248,34 @@ router.get("/inbound-messages", async (req, res): Promise<void> => {
   const filter: Record<string, unknown> = {};
   if (status) filter.status = status;
   if (documentType) filter.documentType = documentType;
-  const msgs = await InboundMessage.find(filter).sort({ createdAt: -1 }).limit(200);
-  res.json(await Promise.all(msgs.map(fmtMsg)));
+  const msgs = await InboundMessage.find(filter).sort({ createdAt: -1 }).limit(200).lean();
+
+  // Batch company lookups — one query instead of 2×N
+  const companyIds = [...new Set([
+    ...msgs.map(m => m.senderId?.toString()),
+    ...msgs.map(m => m.receiverId?.toString()),
+  ].filter(Boolean) as string[])];
+  const companies = companyIds.length ? await Company.find({ _id: { $in: companyIds } }).lean() : [];
+  const companyMap = new Map(companies.map(c => [c._id.toString(), c]));
+
+  res.json(msgs.map(m => {
+    const { sender: isaSender, receiver: isaReceiver } = parseX12SenderReceiver(m.rawPayload ?? "");
+    return {
+      id: m._id.toString(),
+      documentType: m.documentType ?? null,
+      senderId: m.senderId?.toString() ?? null,
+      senderName: (m.senderId ? companyMap.get(m.senderId.toString())?.name : null) ?? isaSender ?? null,
+      receiverId: m.receiverId?.toString() ?? null,
+      receiverName: (m.receiverId ? companyMap.get(m.receiverId.toString())?.name : null) ?? isaReceiver ?? null,
+      rawPayload: m.rawPayload,
+      parsedData: m.parsedData ?? null,
+      status: m.status,
+      validationErrors: m.validationErrors ?? null,
+      controlNumber: m.controlNumber ?? null,
+      createdAt: m.createdAt.toISOString(),
+      processedAt: m.processedAt?.toISOString() ?? null,
+    };
+  }));
 });
 
 router.get("/inbound-messages/:id", async (req, res): Promise<void> => {

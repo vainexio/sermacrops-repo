@@ -49,8 +49,26 @@ router.get("/transactions", async (req, res): Promise<void> => {
   const filter: Record<string, unknown> = {};
   if (status) filter.status = status;
   if (companyId) filter.initiatorId = companyId;
-  const txs = await Transaction.find(filter).sort({ createdAt: -1 }).limit(100);
-  res.json(await Promise.all(txs.map(t => fmtTx(t, false))));
+  const txs = await Transaction.find(filter).sort({ createdAt: -1 }).limit(100).lean();
+
+  // Batch company lookup — one query instead of N
+  const initiatorIds = [...new Set(txs.map(t => t.initiatorId?.toString()).filter(Boolean))];
+  const companies = initiatorIds.length ? await Company.find({ _id: { $in: initiatorIds } }).lean() : [];
+  const companyMap = new Map(companies.map(c => [c._id.toString(), c]));
+
+  res.json(txs.map(o => ({
+    id: o._id.toString(),
+    referenceNumber: o.referenceNumber,
+    status: o.status,
+    initiatorId: o.initiatorId.toString(),
+    initiatorName: companyMap.get(o.initiatorId.toString())?.name ?? null,
+    description: o.description ?? null,
+    totalValue: o.totalValue != null ? Number(o.totalValue) : null,
+    skippedSteps: (o.skippedSteps as number[] | undefined) ?? [],
+    createdAt: o.createdAt.toISOString(),
+    updatedAt: o.updatedAt.toISOString(),
+    documents: [],
+  })));
 });
 
 router.get("/transactions/:id", async (req, res): Promise<void> => {
