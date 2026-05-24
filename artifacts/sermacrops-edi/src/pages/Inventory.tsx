@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Pencil, Trash2, Package, Leaf, ShoppingCart, FileCheck,
   CheckCircle2, Clock, Circle, ArrowRight, Loader2, AlertTriangle,
-  ChevronsRight, MinusCircle, Send, Boxes, FileText, Eye, X,
+  ChevronsRight, MinusCircle, Send, Boxes, FileText, Eye, X, CheckSquare,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ interface StepDoc {
 interface ProcurementOrder {
   id: string;
   referenceNumber: string;
-  status: "open" | "acknowledged" | "received" | "completed";
+  status: "open" | "acknowledged" | "received" | "billing" | "completed";
   supplierId: string;
   supplierName?: string | null;
   currentStep: number;
@@ -143,20 +143,22 @@ function EdiDocumentViewerDialog({ docId, onClose }: { docId: string; onClose: (
 // ─── Procurement Step Indicator ───────────────────────────────────────────────
 
 const PROC_STEPS = [
-  { step: 1, label: "PO Sent to Supplier",      direction: "outbound", Icon: ShoppingCart, docType: "850", passive: false, waitLabel: null },
-  { step: 2, label: "Supplier Acknowledged",     direction: "inbound",  Icon: FileCheck,   docType: "855", passive: true,  waitLabel: "Awaiting inbound 855" },
-  { step: 3, label: "ASN from Supplier",         direction: "inbound",  Icon: Package,     docType: "856", passive: true,  waitLabel: "Awaiting inbound 856" },
-  { step: 4, label: "Invoice from Supplier",     direction: "inbound",  Icon: FileText,    docType: "810", passive: true,  waitLabel: "Awaiting inbound 810" },
+  { step: 1, label: "PO Sent to Supplier",           direction: "outbound", Icon: ShoppingCart, docType: "850", passive: false, waitLabel: null,               sendLabel: "Send PO" },
+  { step: 2, label: "Supplier Acknowledged",          direction: "inbound",  Icon: FileCheck,   docType: "855", passive: true,  waitLabel: "Awaiting inbound 855", sendLabel: null },
+  { step: 3, label: "ASN from Supplier",              direction: "inbound",  Icon: Package,     docType: "856", passive: true,  waitLabel: "Awaiting inbound 856", sendLabel: null },
+  { step: 4, label: "Invoice from Supplier",          direction: "inbound",  Icon: FileText,    docType: "810", passive: true,  waitLabel: "Awaiting inbound 810", sendLabel: null },
+  { step: 5, label: "Receiving Advice to Supplier",   direction: "outbound", Icon: CheckSquare, docType: "861", passive: false, waitLabel: null,               sendLabel: "Send 861" },
 ] as const;
 
 type ProcStep = typeof PROC_STEPS[number];
 
 type ProcStepStatus = "completed" | "next" | "pending" | "skipped";
 
-function getProcStepStatus(step: ProcStep, order: ProcurementOrder, index: number): ProcStepStatus {
+function getProcStepStatus(step: ProcStep, order: ProcurementOrder, _index: number): ProcStepStatus {
   const skipped = new Set(order.skippedSteps ?? []);
   if (skipped.has(step.step)) return "skipped";
-  if (order.status === "completed" || order.status === "billing" || step.step < order.currentStep) return "completed";
+  if (order.status === "completed") return "completed";
+  if (step.step < order.currentStep) return "completed";
   if (step.step === order.currentStep) return "next";
   return "pending";
 }
@@ -262,7 +264,7 @@ function ProcurementStepper({
                         View Document
                       </button>
                     )}
-                    {isNext && !isSkipped && !step.passive && (
+                    {isNext && !isSkipped && !step.passive && step.sendLabel && (
                       <Button
                         size="sm"
                         className="h-6 text-[10px] px-2 gap-1 bg-blue-600 hover:bg-blue-700 text-white"
@@ -270,7 +272,7 @@ function ProcurementStepper({
                         disabled={isAdvancing}
                       >
                         {isAdvancing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
-                        Send PO
+                        {step.sendLabel}
                       </Button>
                     )}
                     {isNext && !isSkipped && step.passive && step.waitLabel && (

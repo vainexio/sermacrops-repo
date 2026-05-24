@@ -25,9 +25,35 @@ function timeNow(): string {
   return `${pad(d.getHours(), 2)}${pad(d.getMinutes(), 2)}`;
 }
 
-function parseLineItems(raw?: string | null): Array<{ description: string; quantity: number; unitPrice: number; uom?: string }> {
+function parseLineItems(raw?: string | null): Array<{ description: string; sku?: string; quantity: number; unitPrice: number; uom?: string }> {
   if (!raw) return [];
   try { return JSON.parse(raw); } catch { return []; }
+}
+
+// Philippine province / region → 2-letter postal code
+const PH_PROVINCE_CODES: Record<string, string> = {
+  "laguna": "LA",
+  "south cotabato": "SC",
+  "metro manila": "MM",
+  "national capital region": "MM",
+  "ncr": "MM",
+  "cebu": "CEB",
+  "davao del sur": "DVO",
+  "batangas": "BTG",
+  "pampanga": "PAM",
+  "bulacan": "BUL",
+  "rizal": "RIZ",
+  "cavite": "CAV",
+  "quezon": "QUE",
+  "nueva ecija": "NUE",
+  "pangasinan": "PAN",
+  "iloilo": "ILO",
+  "negros occidental": "NEC",
+};
+
+function resolveStateCode(state?: string): string | undefined {
+  if (!state) return state;
+  return PH_PROVINCE_CODES[state.toLowerCase()] ?? state;
 }
 
 function n1Loop(qualifier: string, co: CompanyInfo): string[] {
@@ -36,8 +62,9 @@ function n1Loop(qualifier: string, co: CompanyInfo): string[] {
     segs.push(co.addressLine2 ? `N3*${co.addressLine1}*${co.addressLine2}~` : `N3*${co.addressLine1}~`);
   }
   if (co.city || co.state || co.zip) {
+    const stateCode = resolveStateCode(co.state);
     const country = co.country && co.country !== "US" ? `*${co.country}` : "";
-    segs.push(`N4*${co.city ?? ""}*${co.state ?? ""}*${co.zip ?? ""}${country}~`);
+    segs.push(`N4*${co.city ?? ""}*${stateCode ?? ""}*${co.zip ?? ""}${country}~`);
   }
   return segs;
 }
@@ -67,6 +94,7 @@ function getGSFunctionId(content: string): string {
   if (content.includes("ST*810")) return "IN";
   if (content.includes("ST*204")) return "QO";
   if (content.includes("ST*990")) return "GF";
+  if (content.includes("ST*861")) return "RC";
   return "XX";
 }
 
@@ -96,23 +124,25 @@ export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: Co
 
   switch (doc.documentType) {
     case "850": {
-      const lineSegs = items.map((it, i) =>
-        `PO1*${i + 1}*${it.quantity}*${it.uom ?? "EA"}*${it.unitPrice}**VN*${it.description}~`
-      );
       // When senderIsBuyer (e.g. SERMACROPS issuing a PO to a supplier),
       // sender = BY and receiver = SE. Otherwise (PO to a customer), receiver = BY and sender = SE.
       const [buyerInfo, sellerInfo] = senderIsBuyer
         ? [sender, receiver]
         : [receiver, sender];
+      const lineSegs = items.flatMap((it, i) => [
+        `PO1*${i + 1}*${it.quantity}*${(it.uom ?? "EA").toUpperCase()}*${it.unitPrice}*PE*VN*${it.sku ?? it.description}~`,
+        `PID*F****${it.description}~`,
+      ]);
       segs = [
         `ST*850*${stNum}~`,
         `BEG*00*SA*${poNum}**${shipDate}~`,
         `CUR*BY*${currency}~`,
         `REF*DP*${doc.referenceNumber ?? "REF001"}~`,
         `ITD*01*3*2**10*30~`,
+        `DTM*002*${delivDate}~`,
         ...n1Loop("BY", buyerInfo),
         ...n1Loop("SE", sellerInfo),
-        ...(lineSegs.length ? lineSegs : [`PO1*1*1*EA*0.00**VN*ITEM001~`]),
+        ...(lineSegs.length ? lineSegs : [`PO1*1*1*EA*0.00*PE*VN*ITEM001~`, `PID*F****Item~`]),
         `CTT*${items.length || 1}~`,
       ];
       segs.push(`SE*${segCount(segs)}*${stNum}~`);
@@ -226,6 +256,30 @@ export function generateX12(doc: IEdiDocument, sender: CompanyInfo, receiver: Co
         `B1A*${resp}~`,
         ...n1Loop("SH", sender),
         ...n1Loop("CN", receiver),
+      ];
+      segs.push(`SE*${segCount(segs)}*${stNum}~`);
+      break;
+    }
+    case "861": {
+      // Receiving Advice — SERMACROPS (buyer) sends back to supplier (vendor)
+      // senderIsBuyer: sender=SERMACROPS, receiver=supplier
+      const [vendorInfo, buyerInfo] = senderIsBuyer
+        ? [receiver, sender]
+        : [sender, receiver];
+      const raNum = `RA${icn.padStart(9, "0")}`;
+      const receiveDate = today();
+      const lineSegs = items.map((it, i) =>
+        `RCD*${i + 1}*${it.quantity}*${(it.uom ?? "EA").toUpperCase()}**VN*${it.sku ?? it.description}~`
+      );
+      segs = [
+        `ST*861*${stNum}~`,
+        `BRA*${raNum}*${poNum}*${receiveDate}*00~`,
+        `REF*PO*${poNum}~`,
+        `DTM*002*${receiveDate}~`,
+        ...n1Loop("VN", vendorInfo),
+        ...n1Loop("BY", buyerInfo),
+        ...(lineSegs.length ? lineSegs : [`RCD*1*1*EA**VN*ITEM001~`]),
+        `CTT*${items.length || 1}~`,
       ];
       segs.push(`SE*${segCount(segs)}*${stNum}~`);
       break;
