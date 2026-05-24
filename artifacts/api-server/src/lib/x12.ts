@@ -468,26 +468,29 @@ export function parseX12Fields(payload: string, docType: string): ParsedX12Field
         const poRef = refs.find(r => r[0]?.trim() === "PO");
         if (poRef) f.poNumber = f.referenceNumber = poRef[1]?.trim() || undefined;
       }
-      // ── Line items: RCD (standard) or HL/LIN+SN1 (partner variant) ────────
-      // RCD*<lineNum>*<qty>*<uom>**VN*<desc>
-      const rcds = allSegs("RCD");
-      if (rcds.length > 0) {
-        f.lineItems = JSON.stringify(rcds.map(r => ({
-          description: r[5]?.trim() ?? r[4]?.trim() ?? "Item",
-          quantity: Number(r[1]) || 1,
+      // ── Line items ─────────────────────────────────────────────────────────
+      // Prefer LIN+SN1 when present — they always carry item descriptions and
+      // use a consistent field layout regardless of partner.
+      // LIN*<lineNum>*VN*<desc>  /  SN1**<qty>*<uom>
+      const lins = allSegs("LIN");
+      const sn1s = allSegs("SN1");
+      if (lins.length > 0) {
+        f.lineItems = JSON.stringify(lins.map((lin, i) => ({
+          description: lin[2]?.trim() ?? lin[1]?.trim() ?? "Item",
+          quantity: Number(sn1s[i]?.[1]) || 1,
           unitPrice: 0,
-          uom: r[2]?.trim() ?? "EA",
+          uom: sn1s[i]?.[2]?.trim() ?? "EA",
         })));
       } else {
-        // LIN*<lineNum>*VN*<desc> paired with SN1**<qty>*<uom>
-        const lins = allSegs("LIN");
-        const sn1s = allSegs("SN1");
-        if (lins.length > 0) {
-          f.lineItems = JSON.stringify(lins.map((lin, i) => ({
-            description: lin[2]?.trim() ?? lin[1]?.trim() ?? "Item",
-            quantity: Number(sn1s[i]?.[1]) || 1,
+        // Fallback: RCD-only documents (standard format)
+        // RCD*<lineNum>*<qty>*<uom>**VN*<desc>
+        const rcds = allSegs("RCD");
+        if (rcds.length > 0) {
+          f.lineItems = JSON.stringify(rcds.map(r => ({
+            description: r[5]?.trim() ?? r[4]?.trim() ?? "Item",
+            quantity: Number(r[1]) || 1,
             unitPrice: 0,
-            uom: sn1s[i]?.[2]?.trim() ?? "EA",
+            uom: r[2]?.trim() ?? "EA",
           })));
         }
       }
