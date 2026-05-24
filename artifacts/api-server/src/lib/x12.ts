@@ -446,28 +446,50 @@ export function parseX12Fields(payload: string, docType: string): ParsedX12Field
     }
 
     case "861": {
+      // ── Beginning segment: BRA or BFR (partner-specific variant) ──────────
       // BRA*<raNumber>*<poNumber>*<receiveDate>*<purpose>
+      //   → poNumber at index [1], date at [2]
+      // BFR*<purpose>*<receiptNumber>*<date>*<time>*<poNumber>
+      //   → poNumber at index [4], date at [2]
       const bra = seg("BRA");
+      const bfr = seg("BFR");
       if (bra) {
         f.poNumber = bra[1]?.trim() || undefined;
         f.referenceNumber = f.poNumber;
         if (bra[2]) f.deliveryDate = toDate(bra[2].trim());
+      } else if (bfr) {
+        f.poNumber = bfr[4]?.trim() || undefined;
+        f.referenceNumber = f.poNumber;
+        if (bfr[2]) f.deliveryDate = toDate(bfr[2].trim());
       }
-      // REF*PO*<poNumber> — fallback if BRA didn't have it
+      // REF segments — scan all of them for qualifier "PO" as a fallback
       if (!f.poNumber) {
-        const ref = seg("REF");
-        if (ref && ref[0]?.trim() === "PO") f.poNumber = f.referenceNumber = ref[1]?.trim() || undefined;
+        const refs = allSegs("REF");
+        const poRef = refs.find(r => r[0]?.trim() === "PO");
+        if (poRef) f.poNumber = f.referenceNumber = poRef[1]?.trim() || undefined;
       }
-      // RCD line items: RCD*<lineNum>*<qty>*<uom>**VN*<desc>
+      // ── Line items: RCD (standard) or HL/LIN+SN1 (partner variant) ────────
+      // RCD*<lineNum>*<qty>*<uom>**VN*<desc>
       const rcds = allSegs("RCD");
       if (rcds.length > 0) {
-        const items = rcds.map(r => ({
+        f.lineItems = JSON.stringify(rcds.map(r => ({
           description: r[5]?.trim() ?? r[4]?.trim() ?? "Item",
           quantity: Number(r[1]) || 1,
           unitPrice: 0,
           uom: r[2]?.trim() ?? "EA",
-        }));
-        f.lineItems = JSON.stringify(items);
+        })));
+      } else {
+        // LIN*<lineNum>*VN*<desc> paired with SN1**<qty>*<uom>
+        const lins = allSegs("LIN");
+        const sn1s = allSegs("SN1");
+        if (lins.length > 0) {
+          f.lineItems = JSON.stringify(lins.map((lin, i) => ({
+            description: lin[2]?.trim() ?? lin[1]?.trim() ?? "Item",
+            quantity: Number(sn1s[i]?.[1]) || 1,
+            unitPrice: 0,
+            uom: sn1s[i]?.[2]?.trim() ?? "EA",
+          })));
+        }
       }
       break;
     }
