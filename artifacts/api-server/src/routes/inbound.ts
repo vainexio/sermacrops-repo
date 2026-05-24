@@ -178,6 +178,9 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
             await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
           }
           if (docType === "810") {
+            await Transaction.findByIdAndUpdate(tx._id, { status: "in_progress" });
+          }
+          if (docType === "861") {
             await Transaction.findByIdAndUpdate(tx._id, { status: "completed" });
           }
         }

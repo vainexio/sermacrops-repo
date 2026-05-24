@@ -25,7 +25,7 @@ import {
   ArrowLeftRight, ChevronDown, ChevronUp, Plus,
   CheckCircle2, XCircle, Clock, Circle, ArrowRight, Send,
   ShoppingCart, FileCheck, Truck, CheckSquare, Package, Receipt, Trash2,
-  Hourglass, MinusCircle, ChevronsRight, Loader2,
+  Hourglass, MinusCircle, ChevronsRight, Loader2, ClipboardCheck,
 } from "lucide-react";
 
 // ─── Order-to-Cash step definitions ──────────────────────────────────────────
@@ -66,6 +66,12 @@ const O2C_STEPS = [
     label: "Invoice", from: "SERMACROPS", to: "Customer",
     description: "Send invoice for payment",
     Icon: Receipt,
+  },
+  {
+    step: 11, ediType: "861", direction: "inbound" as const,
+    label: "Delivery Confirmation", from: "Customer", to: "SERMACROPS",
+    description: "Customer confirms receipt of the delivery",
+    Icon: ClipboardCheck,
   },
 ] as const;
 
