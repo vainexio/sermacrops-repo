@@ -232,16 +232,20 @@ function ProcStepCircle({ status }: { status: ProcStepStatus }) {
 function ProcurementStepper({
   order,
   onAdvance,
+  onRetry,
   onSkip,
   onViewDoc,
   isAdvancing,
+  isRetrying,
   isSkipping,
 }: {
   order: ProcurementOrder;
   onAdvance: (step: number) => void;
+  onRetry: (docId: string) => void;
   onSkip: (step: number) => void;
   onViewDoc: (docId: string, stepDoc: StepDoc) => void;
   isAdvancing: boolean;
+  isRetrying: boolean;
   isSkipping: boolean;
 }) {
   const skipped = new Set(order.skippedSteps ?? []);
@@ -325,14 +329,14 @@ function ProcurementStepper({
                         </Link>
                       </>
                     )}
-                    {isFailed && isOutbound && (
+                    {isFailed && isOutbound && stepDoc && (
                       <Button
                         size="sm"
                         className="h-6 text-[10px] px-2 gap-1 bg-red-600 hover:bg-red-700 text-white"
-                        onClick={() => onAdvance(step.step)}
-                        disabled={isAdvancing}
+                        onClick={() => onRetry(stepDoc.id)}
+                        disabled={isRetrying}
                       >
-                        {isAdvancing ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
+                        {isRetrying ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Send className="w-2.5 h-2.5" />}
                         Retry
                       </Button>
                     )}
@@ -864,6 +868,27 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const { mutate: retryDoc, isPending: isRetrying } = useMutation({
+    mutationFn: async (docId: string) => {
+      const res = await fetch(`${apiBase}/api/edi-documents/${docId}/send`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Failed to resend document");
+      }
+      return res.json() as Promise<{ success: boolean; message: string }>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.success ? "Document resent" : "Resend failed",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+      queryClient.invalidateQueries({ queryKey: ["procurement"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (err: Error) => toast({ title: "Resend error", description: err.message, variant: "destructive" }),
+  });
+
   const { mutate: skipStep, isPending: isSkipping } = useMutation({
     mutationFn: async (step: number) => {
       const updated = [...(order.skippedSteps ?? []), step];
@@ -962,9 +987,11 @@ function ProcurementOrderCard({ order }: { order: ProcurementOrder }) {
         <ProcurementStepper
           order={order}
           onAdvance={step => advanceStep(step)}
+          onRetry={docId => retryDoc(docId)}
           onSkip={step => skipStep(step)}
           onViewDoc={(docId, sd) => { setViewDocId(docId); setViewStepDoc(sd); }}
           isAdvancing={isAdvancing}
+          isRetrying={isRetrying}
           isSkipping={isSkipping}
         />
       </div>
