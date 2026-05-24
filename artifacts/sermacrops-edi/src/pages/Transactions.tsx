@@ -459,23 +459,24 @@ function AdvanceStepDialog({
     } catch { return []; }
   })();
 
+  const normalizeItemName = (s: string) =>
+    s.toLowerCase().replace(/[-_()[\]]/g, " ").replace(/\s+/g, " ").trim();
+
+  const findInvMatch = (description: string) =>
+    inventoryItems?.find(
+      i => i.category === "manufactured" && normalizeItemName(i.name) === normalizeItemName(description)
+    );
+
   const stockStatus = (inventoryItems && step.step === 2)
     ? poLineItems.map(li => {
-        const inv = inventoryItems.find(
-          i => i.category === "manufactured" && i.name.toLowerCase() === li.description.toLowerCase()
-        );
+        const inv = findInvMatch(li.description);
         return { description: li.description, required: li.quantity, available: inv?.quantity ?? 0, inStock: (inv?.quantity ?? 0) >= li.quantity };
       })
     : [];
 
   useEffect(() => {
     if (step.step === 2 && inventoryItems && poLineItems.length > 0) {
-      const allInStock = poLineItems.every(li => {
-        const inv = inventoryItems.find(
-          i => i.category === "manufactured" && i.name.toLowerCase() === li.description.toLowerCase()
-        );
-        return (inv?.quantity ?? 0) >= li.quantity;
-      });
+      const allInStock = poLineItems.every(li => (findInvMatch(li.description)?.quantity ?? 0) >= li.quantity);
       setAckStatus(allInStock ? "AC" : "RJ");
     }
   }, [inventoryItems]);
