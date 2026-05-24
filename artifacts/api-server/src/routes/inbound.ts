@@ -208,16 +208,6 @@ router.post("/edi/inbound", async (req, res): Promise<void> => {
               details: JSON.stringify({ step: 4, trigger: "inbound_856", referenceNumber: refKey }),
             });
           } else if (docType === "810" && procOrder.currentStep >= 2 && !["billing", "completed"].includes(procOrder.status)) {
-            // Update inventory quantities on invoice receipt
-            for (const li of procOrder.lineItems) {
-              if (li.inventoryItemId) {
-                const item = await InventoryItem.findById(li.inventoryItemId);
-                if (item) {
-                  item.quantity += li.quantity;
-                  await item.save();
-                }
-              }
-            }
             procOrder.currentStep = 5;
             procOrder.status = "billing";
             await procOrder.save();
