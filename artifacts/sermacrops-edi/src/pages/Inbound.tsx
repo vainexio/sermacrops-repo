@@ -133,7 +133,7 @@ export default function Inbound() {
           >
             <div className="flex items-center gap-2">
               <Terminal className="w-4 h-4 text-blue-500" />
-              <span className="text-sm font-semibold text-foreground">Your Receiving Endpoint</span>
+              <span className="text-sm font-semibold text-foreground">Receiving Endpoint</span>
               <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded font-semibold uppercase tracking-wide">LIVE</span>
             </div>
             {showEndpointInfo ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
