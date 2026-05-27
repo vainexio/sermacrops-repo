@@ -305,7 +305,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
         sendResult = { success: false, message: "No active endpoint configured — document saved as ready" };
       }
 
-      order.ediDocumentId = doc850Id as never;
+      order.ediDocumentId = (existing850 ?? { _id: doc850Id })._id as never;
       // Only advance past step 1 if the EDI send actually succeeded
       if (sendResult.success) {
         order.currentStep = 2;

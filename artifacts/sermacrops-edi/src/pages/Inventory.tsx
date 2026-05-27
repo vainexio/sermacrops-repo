@@ -173,6 +173,9 @@ type ProcStep = typeof PROC_STEPS[number];
 
 type ProcStepStatus = "completed" | "failed" | "next" | "pending" | "skipped";
 
+const PROC_STEP_SUCCESS = ["delivered", "sent", "accepted"];
+const PROC_STEP_FAIL    = ["failed", "retry_pending"];
+
 function getProcStepStatus(step: ProcStep, order: ProcurementOrder, _index: number): ProcStepStatus {
   const skipped = new Set(order.skippedSteps ?? []);
   if (skipped.has(step.step)) return "skipped";
@@ -180,22 +183,34 @@ function getProcStepStatus(step: ProcStep, order: ProcurementOrder, _index: numb
 
   const stepDoc = order.stepDocs?.[step.docType];
 
-  // If this step's doc is in a failed or retry-pending state, show it as failed
-  if (stepDoc && (stepDoc.status === "failed" || stepDoc.status === "retry_pending")) {
-    return "failed";
-  }
+  // Failed / retry-pending doc — step needs attention
+  if (stepDoc && PROC_STEP_FAIL.includes(stepDoc.status)) return "failed";
 
-  // If any prior non-skipped step is failed, block all subsequent steps
+  // If any prior non-skipped step is failed, block this step
   const hasPriorFailed = PROC_STEPS.some(s =>
     s.step < step.step &&
     !skipped.has(s.step) &&
     order.stepDocs?.[s.docType] != null &&
-    (order.stepDocs[s.docType].status === "failed" || order.stepDocs[s.docType].status === "retry_pending")
+    PROC_STEP_FAIL.includes(order.stepDocs[s.docType].status)
   );
   if (hasPriorFailed) return "pending";
 
-  if (step.step < order.currentStep) return "completed";
-  if (step.step === order.currentStep) return "next";
+  // Compute the effective current step from doc statuses so that a successfully
+  // delivered doc always marks the step complete even if the backend failed to
+  // increment currentStep (e.g. race condition or retry edge-case).
+  let docBasedStep = 1;
+  for (const s of PROC_STEPS) {
+    if (!skipped.has(s.step)) {
+      const doc = order.stepDocs?.[s.docType];
+      if (doc && PROC_STEP_SUCCESS.includes(doc.status)) {
+        docBasedStep = Math.max(docBasedStep, s.step + 1);
+      }
+    }
+  }
+  const effectiveStep = Math.max(order.currentStep, docBasedStep);
+
+  if (step.step < effectiveStep) return "completed";
+  if (step.step === effectiveStep) return "next";
   return "pending";
 }
 
