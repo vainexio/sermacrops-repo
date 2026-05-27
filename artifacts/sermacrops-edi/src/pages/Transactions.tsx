@@ -1121,9 +1121,6 @@ export default function Transactions() {
             <h1 className="font-semibold text-foreground flex items-center gap-2">
               <ArrowLeftRight className="w-4 h-4" /> Transactions
             </h1>
-            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowCreate(true)}>
-              <Plus className="w-3 h-3" /> New
-            </Button>
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger data-testid="select-tx-status" className="h-8 text-xs">

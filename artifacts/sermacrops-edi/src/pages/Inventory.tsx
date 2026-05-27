@@ -318,7 +318,7 @@ function ProcurementStepper({
                       isNext ? "text-amber-700 dark:text-amber-300" :
                       "text-muted-foreground/60"
                     }`}>
-                      Step {step.step} · {step.label}
+                      {step.label}
                     </span>
                   </div>
 
