@@ -36,8 +36,8 @@ async function fmtOrder(order: InstanceType<typeof ProcurementOrder>) {
     }
   }
 
-  // Per-step EDI docs strictly scoped to this procurement order
-  const allDocs = await EdiDocument.find({ procurementOrderId: o._id }).lean();
+  // Per-step EDI docs strictly scoped to this procurement order — newest per type wins
+  const allDocs = await EdiDocument.find({ procurementOrderId: o._id }).sort({ createdAt: -1 }).lean();
   const stepDocs: Record<string, { id: string; documentType: string; status: string; controlNumber: string }> = {};
   for (const doc of allDocs) {
     if (!stepDocs[doc.documentType]) {
@@ -79,7 +79,7 @@ router.get("/procurement", async (_req, res): Promise<void> => {
 
   const [suppliers, allDocs, primaryDocs] = await Promise.all([
     Company.find({ _id: { $in: supplierIds } }).lean(),
-    EdiDocument.find({ procurementOrderId: { $in: orderIds } }).lean(),
+    EdiDocument.find({ procurementOrderId: { $in: orderIds } }).sort({ createdAt: -1 }).lean(),
     ediDocIds.length ? EdiDocument.find({ _id: { $in: ediDocIds } }).lean() : Promise.resolve([]),
   ]);
 
@@ -220,54 +220,63 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
 
   switch (step) {
     case 1: {
-      // Send 850 outbound to supplier — look up SKU for each line item
-      const lineItemsData = await Promise.all(order.lineItems.map(async (li) => {
-        let sku: string | undefined;
-        if (li.inventoryItemId) {
-          const invItem = await InventoryItem.findById(li.inventoryItemId).lean();
-          sku = invItem?.sku;
-        }
-        return {
-          description: li.name,
-          sku: sku ?? li.name,
-          quantity: li.quantity,
-          unitPrice: li.unitPrice ?? 0,
-          uom: li.unit,
-        };
-      }));
-      const lineItemsStr = JSON.stringify(lineItemsData);
-
-      // Delivery date: 18 days from today
-      const delivDate = new Date();
-      delivDate.setDate(delivDate.getDate() + 18);
-      const deliveryDateStr = `${delivDate.getFullYear()}-${String(delivDate.getMonth() + 1).padStart(2, "0")}-${String(delivDate.getDate()).padStart(2, "0")}`;
-
-      const cn = nextCN();
-      const doc = await EdiDocument.create({
+      // Reuse an existing failed/pending 850 on retry — avoid creating duplicates
+      const existing850 = await EdiDocument.findOne({
+        procurementOrderId: order._id,
         documentType: "850",
         direction: "outbound",
-        senderId: smId,
-        receiverId: supId,
-        controlNumber: cn,
-        referenceNumber: order.referenceNumber,
-        poNumber: order.referenceNumber,
-        lineItems: lineItemsStr,
-        totalAmount: order.totalValue,
-        currencyCode: "PHP",
-        deliveryDate: deliveryDateStr,
-        status: "ready",
-        procurementOrderId: order._id,
-      });
+      }).sort({ createdAt: -1 });
 
-      const x12 = generateX12(doc as never, toCoInfo(sermacrops), toCoInfo(supplier), { senderIsBuyer: true });
-      await EdiDocument.findByIdAndUpdate(doc._id, { x12Content: x12 });
+      let doc850Id: string;
+      let x12: string;
 
-      await AuditLog.create({
-        action: "created",
-        entityType: "EdiDocument",
-        entityId: doc._id.toString(),
-        details: JSON.stringify({ documentType: "850", direction: "outbound", step: 1, procurementOrderId: order._id.toString() }),
-      });
+      if (existing850 && ["failed", "retry_pending", "ready"].includes(existing850.status)) {
+        // Retry: reset the existing doc and resend with its stored x12Content
+        doc850Id = existing850._id.toString();
+        x12 = existing850.x12Content ?? "";
+        await EdiDocument.findByIdAndUpdate(existing850._id, {
+          status: "ready",
+          $inc: { retryCount: 1 },
+          lastResponseCode: null,
+          lastResponseBody: null,
+        });
+      } else {
+        // First send (or re-send after a previous successful delivery) — build a new 850
+        const lineItemsData = await Promise.all(order.lineItems.map(async (li) => {
+          let sku: string | undefined;
+          if (li.inventoryItemId) {
+            const invItem = await InventoryItem.findById(li.inventoryItemId).lean();
+            sku = invItem?.sku;
+          }
+          return { description: li.name, sku: sku ?? li.name, quantity: li.quantity, unitPrice: li.unitPrice ?? 0, uom: li.unit };
+        }));
+        const lineItemsStr = JSON.stringify(lineItemsData);
+        const delivDate = new Date();
+        delivDate.setDate(delivDate.getDate() + 18);
+        const deliveryDateStr = `${delivDate.getFullYear()}-${String(delivDate.getMonth() + 1).padStart(2, "0")}-${String(delivDate.getDate()).padStart(2, "0")}`;
+
+        const newDoc = await EdiDocument.create({
+          documentType: "850", direction: "outbound",
+          senderId: smId, receiverId: supId,
+          controlNumber: nextCN(),
+          referenceNumber: order.referenceNumber,
+          poNumber: order.referenceNumber,
+          lineItems: lineItemsStr,
+          totalAmount: order.totalValue,
+          currencyCode: "PHP",
+          deliveryDate: deliveryDateStr,
+          status: "ready",
+          procurementOrderId: order._id,
+        });
+        x12 = generateX12(newDoc as never, toCoInfo(sermacrops), toCoInfo(supplier), { senderIsBuyer: true });
+        await EdiDocument.findByIdAndUpdate(newDoc._id, { x12Content: x12 });
+        doc850Id = newDoc._id.toString();
+
+        await AuditLog.create({
+          action: "created", entityType: "EdiDocument", entityId: doc850Id,
+          details: JSON.stringify({ documentType: "850", direction: "outbound", step: 1, procurementOrderId: order._id.toString() }),
+        });
+      }
 
       // Attempt delivery
       const endpoint = await PartnerEndpoint.findOne({ companyId: supId, isActive: true }).lean();
@@ -280,23 +289,23 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
           const isOk = resp.status >= 200 && resp.status < 300;
           const respBody = await resp.text().catch(() => "");
           const now = new Date();
-          await EdiDocument.findByIdAndUpdate(doc._id, {
+          await EdiDocument.findByIdAndUpdate(doc850Id, {
             status: isOk ? "delivered" : "failed",
             lastResponseCode: resp.status,
             lastResponseBody: respBody.slice(0, 2000),
-            sentAt: now, retryCount: 1,
+            sentAt: now,
             ...(isOk ? { deliveredAt: now } : {}),
           });
           sendResult = { success: isOk, message: isOk ? "Delivered to supplier" : `HTTP ${resp.status}` };
         } catch (err) {
-          await EdiDocument.findByIdAndUpdate(doc._id, { status: "retry_pending", retryCount: 1, lastResponseBody: String(err) });
+          await EdiDocument.findByIdAndUpdate(doc850Id, { status: "retry_pending", lastResponseBody: String(err) });
           sendResult = { success: false, message: "Network error — queued for retry" };
         }
       } else {
         sendResult = { success: false, message: "No active endpoint configured — document saved as ready" };
       }
 
-      order.ediDocumentId = doc._id;
+      order.ediDocumentId = doc850Id as never;
       // Only advance past step 1 if the EDI send actually succeeded
       if (sendResult.success) {
         order.currentStep = 2;
@@ -381,31 +390,48 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
     }
     case 5: {
       // Outbound 861 — Receiving Advice sent back to supplier
-      const po850 = await EdiDocument.findOne({ procurementOrderId: order._id, documentType: "850" }).lean();
-      const cn5 = nextCN();
-      const raDoc = await EdiDocument.create({
+      // Reuse an existing failed/pending 861 on retry — avoid creating duplicates
+      const existing861 = await EdiDocument.findOne({
+        procurementOrderId: order._id,
         documentType: "861",
         direction: "outbound",
-        senderId: smId,
-        receiverId: supId,
-        controlNumber: cn5,
-        referenceNumber: order.referenceNumber,
-        poNumber: order.referenceNumber,
-        lineItems: po850?.lineItems ?? null,
-        currencyCode: "PHP",
-        status: "ready",
-        procurementOrderId: order._id,
-      });
+      }).sort({ createdAt: -1 });
 
-      const x12ra = generateX12(raDoc as never, toCoInfo(sermacrops), toCoInfo(supplier), { senderIsBuyer: true });
-      await EdiDocument.findByIdAndUpdate(raDoc._id, { x12Content: x12ra });
+      let ra861Id: string;
+      let x12ra: string;
 
-      await AuditLog.create({
-        action: "created",
-        entityType: "EdiDocument",
-        entityId: raDoc._id.toString(),
-        details: JSON.stringify({ documentType: "861", direction: "outbound", step: 5, procurementOrderId: order._id.toString() }),
-      });
+      if (existing861 && ["failed", "retry_pending", "ready"].includes(existing861.status)) {
+        // Retry: reset and resend
+        ra861Id = existing861._id.toString();
+        x12ra = existing861.x12Content ?? "";
+        await EdiDocument.findByIdAndUpdate(existing861._id, {
+          status: "ready",
+          $inc: { retryCount: 1 },
+          lastResponseCode: null,
+          lastResponseBody: null,
+        });
+      } else {
+        // First send — create a new 861
+        const po850 = await EdiDocument.findOne({ procurementOrderId: order._id, documentType: "850" }).lean();
+        const raDoc = await EdiDocument.create({
+          documentType: "861", direction: "outbound",
+          senderId: smId, receiverId: supId,
+          controlNumber: nextCN(),
+          referenceNumber: order.referenceNumber,
+          poNumber: order.referenceNumber,
+          lineItems: po850?.lineItems ?? null,
+          currencyCode: "PHP",
+          status: "ready",
+          procurementOrderId: order._id,
+        });
+        x12ra = generateX12(raDoc as never, toCoInfo(sermacrops), toCoInfo(supplier), { senderIsBuyer: true });
+        await EdiDocument.findByIdAndUpdate(raDoc._id, { x12Content: x12ra });
+        ra861Id = raDoc._id.toString();
+        await AuditLog.create({
+          action: "created", entityType: "EdiDocument", entityId: ra861Id,
+          details: JSON.stringify({ documentType: "861", direction: "outbound", step: 5, procurementOrderId: order._id.toString() }),
+        });
+      }
 
       // Attempt delivery to supplier endpoint
       const endpoint5 = await PartnerEndpoint.findOne({ companyId: supId, isActive: true }).lean();
@@ -418,7 +444,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
           const isOk = resp.status >= 200 && resp.status < 300;
           const respBody = await resp.text().catch(() => "");
           const now = new Date();
-          await EdiDocument.findByIdAndUpdate(raDoc._id, {
+          await EdiDocument.findByIdAndUpdate(ra861Id, {
             status: isOk ? "delivered" : "failed",
             lastResponseCode: resp.status,
             lastResponseBody: respBody.slice(0, 2000),
@@ -427,7 +453,7 @@ router.post("/procurement/:id/advance-step", async (req, res): Promise<void> => 
           });
           sendResult = { success: isOk, message: isOk ? "Receiving Advice (861) delivered to supplier" : `HTTP ${resp.status}` };
         } catch (err) {
-          await EdiDocument.findByIdAndUpdate(raDoc._id, { status: "retry_pending", retryCount: 1, lastResponseBody: String(err) });
+          await EdiDocument.findByIdAndUpdate(ra861Id, { status: "retry_pending", lastResponseBody: String(err) });
           sendResult = { success: false, message: "Network error — Receiving Advice queued for retry" };
         }
       } else {
